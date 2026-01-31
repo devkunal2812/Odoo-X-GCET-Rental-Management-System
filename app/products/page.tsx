@@ -14,7 +14,7 @@ import {
   CheckIcon
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
-import { addToCart } from "../../lib/cart";
+import { addToCart, isProductInCart } from "../../lib/cart";
 
 // Mock data with more realistic products
 const mockProducts = [
@@ -146,6 +146,23 @@ export default function ProductsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [products, setProducts] = useState(mockProducts);
   const [addedToCart, setAddedToCart] = useState<number | null>(null);
+  const [cartItems, setCartItems] = useState<string[]>([]);
+
+  // Update cart items when component mounts and when cart changes
+  React.useEffect(() => {
+    const updateCartItems = () => {
+      const items = products.map(product => product.id.toString()).filter(id => isProductInCart(id));
+      setCartItems(items);
+    };
+
+    updateCartItems();
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => updateCartItems();
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, [products]);
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
@@ -188,7 +205,7 @@ export default function ProductsPage() {
   };
 
   const handleAddToCart = (product: typeof mockProducts[0]) => {
-    if (product.availability !== 'Available') return;
+    if (product.availability !== 'Available' || cartItems.includes(product.id.toString())) return;
 
     const cartItem = {
       productId: product.id.toString(),
@@ -421,15 +438,22 @@ export default function ProductsPage() {
                         disabled={product.availability !== 'Available'}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${
                           product.availability === 'Available'
-                            ? addedToCart === product.id
-                              ? 'bg-success-600 text-white'
-                              : 'bg-primary-600 text-white hover:bg-primary-700'
+                            ? cartItems.includes(product.id.toString())
+                              ? 'bg-success-600 text-white cursor-default'
+                              : addedToCart === product.id
+                                ? 'bg-success-600 text-white'
+                                : 'bg-primary-600 text-white hover:bg-primary-700'
                             : 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
                         }`}
-                        whileHover={product.availability === 'Available' ? { scale: 1.05 } : {}}
-                        whileTap={product.availability === 'Available' ? { scale: 0.95 } : {}}
+                        whileHover={product.availability === 'Available' && !cartItems.includes(product.id.toString()) ? { scale: 1.05 } : {}}
+                        whileTap={product.availability === 'Available' && !cartItems.includes(product.id.toString()) ? { scale: 0.95 } : {}}
                       >
-                        {addedToCart === product.id ? (
+                        {cartItems.includes(product.id.toString()) ? (
+                          <>
+                            <CheckIcon className="h-4 w-4 mr-1" />
+                            Already Added
+                          </>
+                        ) : addedToCart === product.id ? (
                           <>
                             <CheckIcon className="h-4 w-4 mr-1" />
                             Added!
