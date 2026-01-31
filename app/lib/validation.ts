@@ -11,7 +11,7 @@ export const signupSchema = z.object({
   couponCode: z.string().optional(),
   role: z.enum(["ADMIN", "VENDOR", "CUSTOMER"]).default("CUSTOMER"),
 }).refine((data) => {
-  // For VENDOR: companyName and gstin are REQUIRED
+  // For VENDOR: companyName is REQUIRED
   if (data.role === "VENDOR") {
     return data.companyName && data.companyName.length > 0;
   }

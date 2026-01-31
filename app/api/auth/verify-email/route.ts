@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { emailVerificationSchema } from "@/app/lib/validation";
+import { sendWelcomeEmail } from "@/app/lib/email";
 
 /**
  * POST /api/auth/verify-email
@@ -55,6 +56,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(
+        user.email,
+        `${user.firstName} ${user.lastName}`,
+        user.role
+      );
+      console.log(`✅ Welcome email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('📧 Failed to send welcome email:', emailError);
+      // Don't fail the verification if welcome email fails
+    }
+
     // Create audit log
     await prisma.auditLog.create({
       data: {
@@ -62,12 +76,16 @@ export async function POST(request: NextRequest) {
         action: "EMAIL_VERIFIED",
         entity: "User",
         entityId: user.id,
+        metadata: JSON.stringify({
+          verifiedAt: new Date().toISOString(),
+          welcomeEmailSent: true,
+        }),
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: "Email verified successfully. You can now login.",
+      message: "Email verified successfully! You can now login to your account.",
     });
   } catch (error: any) {
     console.error("Email verification error:", error);
@@ -89,9 +107,9 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get("token");
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Token is required" },
-        { status: 400 }
+      // Redirect to a verification page with error
+      return NextResponse.redirect(
+        new URL('/verify-email?error=missing-token', request.url)
       );
     }
 
@@ -101,25 +119,25 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Invalid verification token" },
-        { status: 400 }
+      // Redirect to verification page with error
+      return NextResponse.redirect(
+        new URL('/verify-email?error=invalid-token', request.url)
       );
     }
 
     // Check if token is expired
     if (user.emailVerificationExpiry && user.emailVerificationExpiry < new Date()) {
-      return NextResponse.json(
-        { error: "Verification token has expired" },
-        { status: 400 }
+      // Redirect to verification page with error
+      return NextResponse.redirect(
+        new URL('/verify-email?error=expired-token', request.url)
       );
     }
 
     // Check if already verified
     if (user.emailVerified) {
-      return NextResponse.json(
-        { message: "Email already verified" },
-        { status: 200 }
+      // Redirect to verification page with success message
+      return NextResponse.redirect(
+        new URL('/verify-email?success=already-verified', request.url)
       );
     }
 
@@ -133,6 +151,19 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(
+        user.email,
+        `${user.firstName} ${user.lastName}`,
+        user.role
+      );
+      console.log(`✅ Welcome email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('📧 Failed to send welcome email:', emailError);
+      // Don't fail the verification if welcome email fails
+    }
+
     // Create audit log
     await prisma.auditLog.create({
       data: {
@@ -140,18 +171,22 @@ export async function GET(request: NextRequest) {
         action: "EMAIL_VERIFIED",
         entity: "User",
         entityId: user.id,
+        metadata: JSON.stringify({
+          verifiedAt: new Date().toISOString(),
+          verifiedVia: 'email-link',
+          welcomeEmailSent: true,
+        }),
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Email verified successfully. You can now login.",
-    });
+    // Redirect to success page
+    return NextResponse.redirect(
+      new URL('/verify-email?success=verified', request.url)
+    );
   } catch (error: any) {
     console.error("Email verification error:", error);
-    return NextResponse.json(
-      { error: error.message || "Email verification failed" },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL('/verify-email?error=server-error', request.url)
     );
   }
 }
