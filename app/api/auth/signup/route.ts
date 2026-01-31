@@ -53,11 +53,13 @@ export async function POST(request: NextRequest) {
                 },
               },
             }
-          : {
+          : data.role === "CUSTOMER"
+          ? {
               customerProfile: {
                 create: {},
               },
-            }),
+            }
+          : {}), // ADMIN has no profile
       },
       include: {
         vendorProfile: true,

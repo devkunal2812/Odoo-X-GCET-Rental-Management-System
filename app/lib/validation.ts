@@ -9,7 +9,7 @@ export const signupSchema = z.object({
   companyName: z.string().min(1),
   gstin: z.string().optional(),
   couponCode: z.string().optional(),
-  role: z.enum(["VENDOR", "CUSTOMER"]).default("CUSTOMER"),
+  role: z.enum(["ADMIN", "VENDOR", "CUSTOMER"]).default("CUSTOMER"),
 });
 
 export const loginSchema = z.object({

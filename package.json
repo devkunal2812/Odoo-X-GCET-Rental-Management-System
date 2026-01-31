@@ -14,13 +14,16 @@
     "db:studio": "npx prisma studio",
     "db:migrate": "npx prisma migrate dev",
     "db:reset": "npx prisma migrate reset",
-    "db:test": "node scripts/test-relationships.mjs"
+    "db:test": "node scripts/test-relationships.mjs",
+    "test:api": "node tests/api-manual-test.mjs",
+    "test:api:dev": "TEST_BASE_URL=http://localhost:3000 node tests/api-manual-test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
     "next": "16.1.6",
+    "prisma": "^6.19.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^4.3.6"
@@ -34,7 +37,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "prisma": "^6.19.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"

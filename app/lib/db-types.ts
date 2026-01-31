@@ -1,62 +1,6 @@
-import type { 
-  User, 
-  VendorProfile, 
-  CustomerProfile, 
-  Product, 
-  SaleOrder, 
-  Invoice,
-  ProductPricing,
-  Inventory,
-  ProductVariant,
-  SaleOrderLine,
-  Reservation,
-  InvoiceLine,
-  Payment
-} from '@prisma/client';
+// Database type definitions
+// Simplified to avoid circular references
 
-// User with relations
-export type UserWithProfile = User & {
-  vendorProfile: VendorProfile | null;
-  customerProfile: CustomerProfile | null;
-};
-
-// Product with all relations  
-export type ProductWithDetails = Product & {
-  vendor: VendorProfile;
-  pricing: ProductPricing[];
-  inventory: Inventory | null;
-  variants: ProductVariant[];
-};
-
-// Sale Order with full details
-export type SaleOrderWithDetails = SaleOrder & {
-  customer: CustomerProfile & {
-    user: User;
-  };
-  vendor: VendorProfile;
-  lines: (SaleOrderLine & {
-    product: Product;
-    variant: ProductVariant | null;
-  })[];
-  invoices: Invoice[];
-  reservations: Reservation[];
-};
-
-// Invoice with details
-export type InvoiceWithDetails = Invoice & {
-  saleOrder: SaleOrder & {
-    customer: CustomerProfile & {
-      user: User;
-    };
-    vendor: VendorProfile;
-  };
-  lines: (InvoiceLine & {
-    product: Product;
-  })[];
-  payments: Payment[];
-};
-
-// Common select options for API responses
 export const userSelect = {
   id: true,
   firstName: true,

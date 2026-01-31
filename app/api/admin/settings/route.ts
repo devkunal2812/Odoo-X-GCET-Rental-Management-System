@@ -112,7 +112,7 @@ export const PUT = requireRole("ADMIN")(
       if (data.rentalPeriods) {
         for (const period of data.rentalPeriods) {
           if (period.id) {
-            // Update existing
+            // Update existing by ID
             const updated = await prisma.rentalPeriodConfig.update({
               where: { id: period.id },
               data: {
@@ -123,15 +123,20 @@ export const PUT = requireRole("ADMIN")(
             });
             results.updatedRentalPeriods.push(updated);
           } else {
-            // Create new
-            const created = await prisma.rentalPeriodConfig.create({
-              data: {
+            // Upsert by name (create or update)
+            const upserted = await prisma.rentalPeriodConfig.upsert({
+              where: { name: period.name },
+              update: {
+                unit: period.unit,
+                duration: period.duration,
+              },
+              create: {
                 name: period.name,
                 unit: period.unit,
                 duration: period.duration,
               },
             });
-            results.updatedRentalPeriods.push(created);
+            results.updatedRentalPeriods.push(upserted);
           }
         }
       }
