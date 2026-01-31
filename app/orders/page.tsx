@@ -29,36 +29,22 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// Load orders from localStorage
-const loadOrdersFromStorage = () => {
-  if (typeof window === 'undefined') return [];
-  
-  try {
-    const orders = localStorage.getItem('userOrders');
-    return orders ? JSON.parse(orders) : [];
-  } catch (error) {
-    console.error('Error loading orders from localStorage:', error);
-    return [];
-  }
-};
-
-// Load orders from database API
+// Load orders from database API only (no localStorage fallback)
 const loadOrdersFromDatabase = async () => {
   try {
     const response = await fetch('/api/orders/user');
     const result = await response.json();
     
     if (result.success) {
-      console.log(`Loaded ${result.orders.length} orders from ${result.source}`);
+      console.log(`✅ Loaded ${result.orders.length} orders from ${result.source}`);
       return result.orders;
     } else {
-      console.log('Database API failed, falling back to localStorage');
-      return loadOrdersFromStorage();
+      console.log('❌ Database API failed');
+      return [];
     }
   } catch (error) {
-    console.error('Error loading orders from database:', error);
-    console.log('Falling back to localStorage');
-    return loadOrdersFromStorage();
+    console.error('❌ Error loading orders from database:', error);
+    return [];
   }
 };
 
@@ -101,26 +87,24 @@ export default function OrdersPage() {
   useEffect(() => {
     const loadOrders = async () => {
       try {
-        // Try to load from database first
+        console.log('🔍 Loading orders from database only...');
+        
+        // Only load from database - no localStorage fallback
         const dbOrders = await loadOrdersFromDatabase();
         
-        // If database has orders, use them
-        if (dbOrders.length > 0) {
-          setOrders(dbOrders);
-          setLoading(false);
-          return;
-        }
-        
-        // Otherwise, fall back to localStorage
-        const localOrders = loadOrdersFromStorage();
-        setOrders(localOrders);
+        console.log(`📊 Found ${dbOrders.length} orders from database`);
+        setOrders(dbOrders);
         setLoading(false);
         
+        if (dbOrders.length > 0) {
+          console.log('✅ Loaded orders from database successfully');
+        } else {
+          console.log('ℹ️ No orders found in database - user needs to make a purchase');
+        }
+        
       } catch (error) {
-        console.error('Error loading orders:', error);
-        // Final fallback to localStorage
-        const localOrders = loadOrdersFromStorage();
-        setOrders(localOrders);
+        console.error('❌ Error loading orders:', error);
+        setOrders([]);
         setLoading(false);
       }
     };
@@ -564,7 +548,7 @@ export default function OrdersPage() {
               No orders found
             </h3>
             <p className="mb-6 text-secondary-600">
-              You don't have any rental orders at the moment
+              You don't have any rental orders yet. Complete a purchase to see your orders here.
             </p>
             <Link
               href="/products"

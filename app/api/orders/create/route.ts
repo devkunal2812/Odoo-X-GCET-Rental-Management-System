@@ -196,6 +196,12 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Order saved to database:', dbOrder.orderNumber);
       console.log('✅ Invoice created in database:', dbInvoice.invoiceNumber);
+      console.log('📊 Database records created:');
+      console.log('   - Customer:', customerProfile.user.email);
+      console.log('   - Vendor:', vendorProfile.companyName);
+      console.log('   - Products:', orderLines.length);
+      console.log('   - Order ID:', dbOrder.id);
+      console.log('   - Invoice ID:', dbInvoice.id);
 
       // Create order data for response (compatible with frontend)
       const orderData = {
@@ -223,7 +229,9 @@ export async function POST(request: NextRequest) {
         pickupTime: "10:00 AM",
         returnLocation: deliveryMethod === "pickup" ? "Store Location - 123 Main St" : "Delivery Address",
         returnTime: "5:00 PM",
+        // ✅ CRITICAL: Mark as paid since payment was successful
         paymentStatus: "paid",
+        isPaid: true, // ✅ Add isPaid flag for frontend
         paymentId: paymentId,
         razorpayOrderId: razorpayOrderId,
         paymentMethod: "Razorpay (Test Mode)",
@@ -250,7 +258,7 @@ export async function POST(request: NextRequest) {
           unitPrice: item.unitPrice,
           totalPrice: item.unitPrice * item.quantity * item.rentalDuration
         })),
-        notes: `Order placed via Razorpay. Payment ID: ${paymentId}. Saved to database.`,
+        notes: `✅ Order placed via Razorpay. Payment ID: ${paymentId}. PAYMENT VERIFIED & SAVED TO DATABASE.`,
         createdAt: new Date().toISOString(),
         dbOrderId: dbOrder.id // Include database ID for reference
       };

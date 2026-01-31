@@ -27,96 +27,23 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// Load orders from localStorage
-const loadOrdersFromStorage = () => {
-  if (typeof window === 'undefined') return [];
-  
-  try {
-    const orders = localStorage.getItem('userOrders');
-    return orders ? JSON.parse(orders) : [];
-  } catch (error) {
-    console.error('Error loading orders from localStorage:', error);
-    return [];
-  }
-};
-
-// Load orders from database API
-const loadOrdersFromDatabase = async () => {
-  try {
-    const response = await fetch('/api/orders/user');
-    const result = await response.json();
-    
-    if (result.success) {
-      console.log(`Loaded ${result.orders.length} orders from ${result.source} for invoices`);
-      return result.orders;
-    } else {
-      console.log('Database API failed, falling back to localStorage for invoices');
-      return loadOrdersFromStorage();
-    }
-  } catch (error) {
-    console.error('Error loading orders from database for invoices:', error);
-    console.log('Falling back to localStorage for invoices');
-    return loadOrdersFromStorage();
-  }
-};
-
-// Load invoices from database API
+// Load invoices from database API only (no localStorage fallback)
 const loadInvoicesFromDatabase = async () => {
   try {
     const response = await fetch('/api/invoices/user');
     const result = await response.json();
     
     if (result.success && result.invoices.length > 0) {
-      console.log(`Loaded ${result.invoices.length} invoices from ${result.source}`);
+      console.log(`✅ Loaded ${result.invoices.length} invoices from ${result.source}`);
       return result.invoices;
     } else {
-      console.log('No invoices in database, generating from orders');
-      // Fall back to generating from orders
-      const orders = await loadOrdersFromDatabase();
-      return orders.map(generateInvoiceFromOrder);
+      console.log('ℹ️ No invoices found in database');
+      return [];
     }
   } catch (error) {
-    console.error('Error loading invoices from database:', error);
-    console.log('Falling back to generating invoices from orders');
-    const orders = await loadOrdersFromDatabase();
-    return orders.map(generateInvoiceFromOrder);
+    console.error('❌ Error loading invoices from database:', error);
+    return [];
   }
-};
-
-// Generate invoice data from order
-const generateInvoiceFromOrder = (order: any) => {
-  const invoiceId = `INV-${order.id.replace('ORD-', '')}`;
-  const issueDate = order.orderDate || new Date().toISOString().split('T')[0];
-  const dueDate = new Date(new Date(issueDate).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
-  // Calculate tax and fees
-  const subtotal = order.amount || 0;
-  const tax = subtotal * 0.18; // 18% GST
-  const serviceFee = subtotal * 0.05; // 5% service fee
-  const total = subtotal + tax + serviceFee;
-  
-  return {
-    id: invoiceId,
-    orderId: order.id,
-    product: order.product?.name || 'Rental Items',
-    vendor: order.vendor?.name || 'Vendor',
-    amount: subtotal,
-    tax: tax,
-    serviceFee: serviceFee,
-    total: total,
-    status: order.paymentStatus === 'paid' ? 'paid' : 'pending',
-    issueDate: issueDate,
-    dueDate: dueDate,
-    paidDate: order.paymentStatus === 'paid' ? (order.paymentTimestamp ? order.paymentTimestamp.split('T')[0] : issueDate) : null,
-    paymentMethod: order.paymentMethod || (order.paymentStatus === 'paid' ? 'Razorpay' : ''),
-    rentalPeriod: order.startDate && order.endDate 
-      ? `${formatDate(order.startDate)} - ${formatDate(order.endDate)} (${order.duration || 1} ${order.unit || 'days'})`
-      : 'N/A',
-    paymentId: order.paymentId,
-    razorpayOrderId: order.razorpayOrderId,
-    paymentVerified: order.paymentVerified || false,
-    orderData: order // Store full order data for invoice generation
-  };
 };
 
 const statusOptions = ["All", "Paid", "Pending", "Overdue"];
@@ -145,27 +72,24 @@ export default function InvoicesPage() {
   useEffect(() => {
     const loadInvoices = async () => {
       try {
-        // Try to load invoices directly from database first
+        console.log('🔍 Loading invoices from database only...');
+        
+        // Only load invoices directly from database - no localStorage fallback
         const dbInvoices = await loadInvoicesFromDatabase();
         
-        if (dbInvoices.length > 0) {
-          setInvoices(dbInvoices);
-          setLoading(false);
-          return;
-        }
-        
-        // If no database invoices, fall back to generating from orders
-        const localOrders = loadOrdersFromStorage();
-        const generatedInvoices = localOrders.map(generateInvoiceFromOrder);
-        setInvoices(generatedInvoices);
+        console.log(`📊 Found ${dbInvoices.length} invoices from database`);
+        setInvoices(dbInvoices);
         setLoading(false);
         
+        if (dbInvoices.length > 0) {
+          console.log('✅ Loaded invoices from database successfully');
+        } else {
+          console.log('ℹ️ No invoices found in database - user needs to make a purchase');
+        }
+        
       } catch (error) {
-        console.error('Error loading invoices:', error);
-        // Final fallback to localStorage orders
-        const localOrders = loadOrdersFromStorage();
-        const generatedInvoices = localOrders.map(generateInvoiceFromOrder);
-        setInvoices(generatedInvoices);
+        console.error('❌ Error loading invoices:', error);
+        setInvoices([]);
         setLoading(false);
       }
     };
@@ -575,7 +499,7 @@ export default function InvoicesPage() {
             </h3>
             <p className="mb-6 text-[#715A5A]">
               {invoices.length === 0 
-                ? "Complete an order to generate your first invoice" 
+                ? "Complete a purchase to generate your first invoice" 
                 : "Try adjusting your search or filters"
               }
             </p>

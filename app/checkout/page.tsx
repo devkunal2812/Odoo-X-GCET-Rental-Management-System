@@ -24,18 +24,6 @@ const deliveryMethods = [
   }
 ];
 
-// Save order to localStorage after successful payment
-const saveOrderToStorage = (orderData: any) => {
-  try {
-    const existingOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-    existingOrders.unshift(orderData); // Add to beginning of array
-    localStorage.setItem('userOrders', JSON.stringify(existingOrders));
-    console.log('Order saved to localStorage:', orderData);
-  } catch (error) {
-    console.error('Error saving order to localStorage:', error);
-  }
-};
-
 export default function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [deliveryMethod, setDeliveryMethod] = useState("standard");
@@ -158,7 +146,7 @@ export default function CheckoutPage() {
 
   const saveOrderAfterPayment = async (paymentId: string, razorpayOrderId: string) => {
     try {
-      // Call API to create order
+      // Call API to create order in database
       const response = await fetch('/api/orders/create', {
         method: 'POST',
         headers: {
@@ -177,34 +165,15 @@ export default function CheckoutPage() {
       const result = await response.json();
 
       if (result.success) {
-        // Save to localStorage
-        saveOrderToStorage(result.order);
         setSavedOrderId(result.order.id);
-        console.log('Order saved successfully:', result.order);
+        console.log('✅ Order saved to database successfully:', result.order);
       } else {
         throw new Error(result.error || 'Failed to create order');
       }
     } catch (error) {
-      console.error('Error saving order:', error);
-      // Fallback to direct localStorage save
-      const orderId = `ORD-${Date.now()}`;
-      const fallbackOrder = {
-        id: orderId,
-        product: { name: "Order Items", image: "/api/placeholder/100/100" },
-        vendor: { name: "Vendor", phone: "+1 (555) 123-4567", email: "support@rentmarket.com" },
-        amount: total,
-        status: "confirmed",
-        paymentStatus: "paid", // Explicitly set as paid since we reached this after successful payment
-        paymentId,
-        razorpayOrderId,
-        paymentMethod: "Razorpay (Test Mode)",
-        paymentVerified: true,
-        paymentTimestamp: new Date().toISOString(),
-        orderDate: new Date().toISOString().split('T')[0],
-        notes: `Fallback order creation. Payment ID: ${paymentId}. Payment verified successfully.`
-      };
-      saveOrderToStorage(fallbackOrder);
-      setSavedOrderId(orderId);
+      console.error('❌ Error saving order to database:', error);
+      // Show error to user but don't create fallback order
+      alert('Order could not be saved. Please contact support with your payment ID: ' + paymentId);
     }
   };
 
@@ -247,9 +216,13 @@ export default function CheckoutPage() {
               
               // Clear cart after successful payment
               clearCart();
+              
+              // Trigger order update event for other pages to refresh
+              window.dispatchEvent(new CustomEvent('orderUpdated'));
+              
               setOrderPlaced(true);
               setCurrentStep(4); // Move to success step
-              console.log('Payment successful:', verificationResult);
+              console.log('✅ Payment successful and order saved to database:', verificationResult);
             } else {
               alert('Payment verification failed. Please contact support.');
             }
