@@ -1,12 +1,12 @@
 // Late fee calculation utilities
-import { prisma } from "./prisma";
+import { calculateLateFee as calculateLateFeeFromSettings, getSetting } from "./settings";
 
 /**
  * Calculate late fee based on return delay
  * 
  * Logic:
  * 1. Get late fee configuration from settings
- * 2. Calculate extra days/hours
+ * 2. Calculate extra days/hours beyond grace period
  * 3. Apply rate per day
  * 
  * @param plannedEndDate - Original planned return date
@@ -26,21 +26,21 @@ export async function calculateLateFee(
     return 0; // No delay, no fee
   }
 
-  // Convert to days (rounded up)
-  const delayDays = Math.ceil(delayMs / (1000 * 60 * 60 * 24));
+  // Get grace period from settings
+  const gracePeriodHours = await getSetting('late_fee_grace_period_hours');
+  const gracePeriodMs = gracePeriodHours * 60 * 60 * 1000;
 
-  // Get late fee rate from settings (default: 10% of daily rate per day)
-  const lateFeeSettings = await prisma.systemSettings.findUnique({
-    where: { key: "late_fee_rate" },
-  });
+  // Check if within grace period
+  if (delayMs <= gracePeriodMs) {
+    return 0; // Within grace period, no fee
+  }
 
-  const lateFeeRate = lateFeeSettings 
-    ? parseFloat(lateFeeSettings.value) 
-    : 0.1; // Default 10% per day
+  // Calculate chargeable delay (beyond grace period)
+  const chargeableDelayMs = delayMs - gracePeriodMs;
+  const chargeableDelayDays = chargeableDelayMs / (1000 * 60 * 60 * 24);
 
-  // Calculate late fee
-  const dailyRate = orderAmount / 7; // Assume weekly rental, adjust as needed
-  const lateFee = dailyRate * lateFeeRate * delayDays;
+  // Use the settings utility to calculate late fee
+  const lateFee = await calculateLateFeeFromSettings(orderAmount, chargeableDelayDays);
 
   return Math.round(lateFee * 100) / 100; // Round to 2 decimals
 }
@@ -49,26 +49,11 @@ export async function calculateLateFee(
  * Get late fee configuration
  */
 export async function getLateFeeConfig() {
-  const settings = await prisma.systemSettings.findMany({
-    where: {
-      key: {
-        in: ["late_fee_rate", "late_fee_grace_period_hours"],
-      },
-    },
-  });
+  const rate = await getSetting('late_fee_rate');
+  const gracePeriodHours = await getSetting('late_fee_grace_period_hours');
 
-  const config: any = {
-    rate: 0.1, // 10% per day default
-    gracePeriodHours: 0,
+  return {
+    rate,
+    gracePeriodHours,
   };
-
-  settings.forEach((setting: any) => {
-    if (setting.key === "late_fee_rate") {
-      config.rate = parseFloat(setting.value);
-    } else if (setting.key === "late_fee_grace_period_hours") {
-      config.gracePeriodHours = parseInt(setting.value);
-    }
-  });
-
-  return config;
 }

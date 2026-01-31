@@ -198,18 +198,41 @@ async function main() {
   // ============================================
   await prisma.systemSettings.createMany({
     data: [
-      { key: 'gst_percentage', value: '18', description: 'GST/Tax percentage' },
-      { key: 'late_fee_rate', value: '0.1', description: 'Late fee rate per day (10%)' },
-      { key: 'late_fee_grace_period_hours', value: '24', description: 'Grace period before late fees' },
-      { key: 'company_name', value: 'RentMarket Platform', description: 'Company name' },
-      { key: 'company_address', value: '123 Platform Street, Tech City, CA 94000', description: 'Company address' },
-      { key: 'company_gstin', value: '29PLATFORM1234F1Z5', description: 'Company GSTIN' },
-      { key: 'company_phone', value: '+1-800-RENTALS', description: 'Company phone' },
-      { key: 'company_email', value: 'support@rentmarket.com', description: 'Company email' },
-      { key: 'security_deposit_percentage', value: '20', description: 'Security deposit percentage' },
-      { key: 'platform_fee', value: '5', description: 'Platform fee percentage' },
+      // General Settings
+      { key: 'site_name', value: 'RentMarket Platform', description: 'Name of the rental platform' },
+      { key: 'site_description', value: 'Your trusted marketplace for renting everything you need', description: 'Description of the rental platform' },
+      { key: 'maintenance_mode', value: 'false', description: 'Enable/disable maintenance mode' },
+      { key: 'allow_registration', value: 'true', description: 'Allow new user registrations' },
       { key: 'invoice_prefix', value: 'INV', description: 'Invoice number prefix' },
       { key: 'currency', value: 'INR', description: 'Currency code' },
+      
+      // Company Details
+      { key: 'company_name', value: 'RentMarket Platform', description: 'Company name for invoices' },
+      { key: 'company_address', value: '123 Platform Street, Tech City, CA 94000', description: 'Company address for invoices' },
+      { key: 'company_gstin', value: '29PLATFORM1234F1Z5', description: 'Company GSTIN for invoices' },
+      { key: 'company_phone', value: '+1-800-RENTALS', description: 'Company phone number' },
+      { key: 'company_email', value: 'support@rentmarket.com', description: 'Company email address' },
+      
+      // Payment & Fees
+      { key: 'platform_fee', value: '5', description: 'Platform fee percentage' },
+      { key: 'gst_percentage', value: '18', description: 'GST/Tax percentage applied to invoices' },
+      { key: 'payment_gateway', value: 'razorpay', description: 'Payment gateway provider' },
+      { key: 'auto_payouts', value: 'true', description: 'Enable automatic vendor payouts' },
+      { key: 'minimum_payout', value: '500', description: 'Minimum payout amount' },
+      { key: 'security_deposit_percentage', value: '20', description: 'Security deposit as percentage of order amount' },
+      { key: 'late_fee_rate', value: '0.1', description: 'Late fee rate per day (10%)' },
+      { key: 'late_fee_grace_period_hours', value: '24', description: 'Grace period in hours before late fees apply' },
+      
+      // Security Settings
+      { key: 'two_factor_auth', value: 'false', description: 'Enable two-factor authentication' },
+      { key: 'session_timeout', value: '30', description: 'Session timeout in minutes' },
+      { key: 'password_min_length', value: '8', description: 'Minimum password length' },
+      { key: 'require_strong_password', value: 'true', description: 'Require strong passwords' },
+      
+      // Notification Settings
+      { key: 'email_notifications', value: 'true', description: 'Enable email notifications' },
+      { key: 'sms_notifications', value: 'false', description: 'Enable SMS notifications' },
+      { key: 'admin_alerts', value: 'true', description: 'Enable admin alerts' },
     ],
   });
   console.log('✅ Created system settings');
@@ -767,7 +790,7 @@ async function main() {
   console.log('\n🎫 Coupons:');
   console.log('   • 3 Active coupons');
   console.log('\n⚙️  System:');
-  console.log('   • 12 System settings configured');
+  console.log('   • 25 System settings configured');
   console.log('   • 4 Rental periods (Hourly, Daily, Weekly, Monthly)');
   console.log('   • 3 Attributes (Color, Size, Brand)');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

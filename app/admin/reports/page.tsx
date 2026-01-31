@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChartBarIcon,
@@ -12,37 +12,57 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/react/24/outline';
+import { reportService } from '@/app/lib/services/reports';
+import type { AdminReportType } from '@/types/api';
+import { generateReportPDF } from '@/lib/reportGenerator';
 
 const reportTypes = [
   {
-    id: 'revenue',
+    id: 'summary' as AdminReportType,
+    name: 'Summary Report',
+    description: 'Complete system overview and metrics',
+    icon: ChartBarIcon,
+    color: 'bg-blue-500'
+  },
+  {
+    id: 'revenue' as AdminReportType,
     name: 'Revenue Report',
     description: 'Detailed revenue analysis by period',
     icon: CurrencyDollarIcon,
     color: 'bg-green-500'
   },
   {
-    id: 'customers',
-    name: 'Customer Report',
-    description: 'Customer acquisition and retention metrics',
-    icon: UsersIcon,
-    color: 'bg-blue-500'
-  },
-  {
-    id: 'vendors',
-    name: 'Vendor Report',
-    description: 'Vendor performance and analytics',
-    icon: BuildingStorefrontIcon,
+    id: 'products' as AdminReportType,
+    name: 'Products Report',
+    description: 'Product performance and inventory metrics',
+    icon: ChartBarIcon,
     color: 'bg-purple-500'
   },
   {
-    id: 'orders',
+    id: 'vendors' as AdminReportType,
+    name: 'Vendor Report',
+    description: 'Vendor performance and analytics',
+    icon: BuildingStorefrontIcon,
+    color: 'bg-orange-500'
+  },
+  {
+    id: 'orders' as AdminReportType,
     name: 'Order Report',
     description: 'Order trends and fulfillment metrics',
     icon: ChartBarIcon,
-    color: 'bg-orange-500'
+    color: 'bg-indigo-500'
   }
 ];
+
+interface GeneratedReport {
+  id: string;
+  name: string;
+  type: string;
+  generatedDate: string;
+  size: string;
+  status: string;
+  data?: any;
+}
 
 const quickStats = [
   {
@@ -111,19 +131,119 @@ const recentReports = [
 ];
 
 export default function AdminReportsPage() {
-  const [selectedReportType, setSelectedReportType] = useState('');
+  const [selectedReportType, setSelectedReportType] = useState<AdminReportType | ''>('');
   const [dateRange, setDateRange] = useState('last-month');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>(recentReports);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!selectedReportType) return;
     
     setIsGenerating(true);
-    // Simulate report generation
-    setTimeout(() => {
+    setError(null);
+
+    try {
+      // Calculate date range
+      const endDate = new Date();
+      let startDate = new Date();
+      
+      switch (dateRange) {
+        case 'last-week':
+          startDate.setDate(endDate.getDate() - 7);
+          break;
+        case 'last-month':
+          startDate.setMonth(endDate.getMonth() - 1);
+          break;
+        case 'last-quarter':
+          startDate.setMonth(endDate.getMonth() - 3);
+          break;
+        case 'last-year':
+          startDate.setFullYear(endDate.getFullYear() - 1);
+          break;
+        default:
+          startDate.setMonth(endDate.getMonth() - 1);
+      }
+
+      // Fetch report data from API
+      const reportData = await reportService.getAdminReport(
+        selectedReportType,
+        {
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
+        }
+      );
+
+      // Create report metadata
+      const reportTypeName = reportTypes.find(t => t.id === selectedReportType)?.name || 'Report';
+      const dateRangeName = dateRange.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      
+      const newReport: GeneratedReport = {
+        id: Date.now().toString(),
+        name: `${reportTypeName} - ${dateRangeName} - ${new Date().toLocaleDateString('en-IN')}`,
+        type: reportTypeName,
+        generatedDate: new Date().toISOString().split('T')[0],
+        size: `${(JSON.stringify(reportData).length / 1024).toFixed(1)} KB`,
+        status: 'Ready',
+        data: reportData
+      };
+
+      // Add to generated reports list
+      setGeneratedReports(prev => [newReport, ...prev]);
+
+      // Generate PDF report (async) - this will download the PDF
+      try {
+        await generateReportPDF(selectedReportType, reportData);
+        
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        successMessage.textContent = 'PDF report generated and downloaded successfully!';
+        document.body.appendChild(successMessage);
+        setTimeout(() => document.body.removeChild(successMessage), 3000);
+      } catch (pdfError) {
+        console.error('PDF generation failed:', pdfError);
+        
+        // Show error for PDF but continue
+        const warningMessage = document.createElement('div');
+        warningMessage.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        warningMessage.textContent = 'PDF generation failed. Downloading JSON instead.';
+        document.body.appendChild(warningMessage);
+        setTimeout(() => document.body.removeChild(warningMessage), 3000);
+        
+        // Fallback to JSON download
+        downloadReport(newReport);
+      }
+
+    } catch (err: any) {
+      console.error('Failed to generate report:', err);
+      setError(err.message || 'Failed to generate report. Please try again.');
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = 'Failed to generate report. Please try again.';
+      document.body.appendChild(errorMessage);
+      setTimeout(() => document.body.removeChild(errorMessage), 3000);
+    } finally {
       setIsGenerating(false);
-      alert('Report generated successfully!');
-    }, 2000);
+    }
+  };
+
+  const downloadReport = (report: GeneratedReport) => {
+    // Convert report data to JSON
+    const jsonData = JSON.stringify(report.data, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${report.name.replace(/\s+/g, '_')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -188,7 +308,7 @@ export default function AdminReportsPage() {
                       name="reportType"
                       value={type.id}
                       checked={selectedReportType === type.id}
-                      onChange={(e) => setSelectedReportType(e.target.value)}
+                      onChange={(e) => setSelectedReportType(e.target.value as AdminReportType)}
                       className="mr-3 accent-[#37353E]"
                     />
                     <div className={`p-2 rounded-lg ${type.color} mr-3`}>
@@ -209,7 +329,7 @@ export default function AdminReportsPage() {
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="w-full px-3 py-2 border border-[#D3DAD9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44444E] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#D3DAD9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44444E] focus:border-transparent text-[#37353E] bg-white"
               >
                 <option value="last-week">Last Week</option>
                 <option value="last-month">Last Month</option>
@@ -218,6 +338,13 @@ export default function AdminReportsPage() {
                 <option value="custom">Custom Range</option>
               </select>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
 
             {/* Generate Button */}
             <button
@@ -253,7 +380,7 @@ export default function AdminReportsPage() {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {recentReports.map((report) => (
+              {generatedReports.map((report) => (
                 <div key={report.id} className="flex items-center justify-between p-4 bg-[#D3DAD9]/20 rounded-lg">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-[#37353E] mb-1">{report.name}</p>
@@ -269,7 +396,11 @@ export default function AdminReportsPage() {
                     <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                       {report.status}
                     </span>
-                    <button className="p-2 text-[#44444E] hover:text-[#37353E] hover:bg-[#D3DAD9] rounded-lg transition-colors">
+                    <button 
+                      onClick={() => downloadReport(report)}
+                      className="p-2 text-[#44444E] hover:text-[#37353E] hover:bg-[#D3DAD9] rounded-lg transition-colors"
+                      title="Download Report"
+                    >
                       <ArrowDownTrayIcon className="h-4 w-4" />
                     </button>
                   </div>

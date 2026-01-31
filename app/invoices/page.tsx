@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
 import {
@@ -15,7 +15,8 @@ import {
   CalendarIcon,
   ArrowLeftIcon
 } from "@heroicons/react/24/outline";
-import { generateInvoicePDF, generateSampleInvoiceData } from "../../lib/invoiceGenerator";
+import { generateInvoicePDF, buildInvoiceData, type InvoiceAPIData } from "../../lib/invoiceGenerator";
+import { api } from "@/app/lib/api-client";
 
 // Utility function for consistent date formatting
 const formatDate = (dateString: string) => {
@@ -27,25 +28,151 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// Load invoices from database API only (no localStorage fallback)
-const loadInvoicesFromDatabase = async () => {
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalAmount: number;
+  subtotal: string;
+  taxAmount: string;
+  paidAmount: number;
+  balanceDue: number;
+  saleOrder: {
+    id: string;
+    orderNumber: string;
+    startDate: string | null;
+    endDate: string | null;
+    customer: {
+      user: {
+        firstName: string;
+        lastName: string;
+        email: string;
+      };
+      phone: string | null;
+      defaultAddress: string | null;
+    };
+    vendor: {
+      companyName: string;
+    };
+    lines: Array<{
+      product: {
+        name: string;
+      };
+      quantity: number;
+      unitPrice: number;
+    }>;
+  };
+  lines: Array<{
+    product: {
+      name: string;
+    };
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+  }>;
+  payments: Array<{
+    method: string;
+    amount: number;
+    status: string;
+    transactionRef: string | null;
+    createdAt: string;
+  }>;
+}
+
+// Load invoices from database API
+const loadInvoicesFromDatabase = async (): Promise<Invoice[]> => {
   try {
-    console.log('🔗 Calling /api/invoices/user...');
+    console.log('🔗 Fetching invoices from database...');
+    
+    // Try to fetch from the invoices API (works for vendors/admins)
+    try {
+      const result = await api.get<{ success: boolean; invoices: any[] }>('/invoices');
+      
+      if (result.success && result.invoices.length > 0) {
+        console.log(`✅ Loaded ${result.invoices.length} real invoices from database (vendor/admin endpoint)`);
+        // This endpoint returns the full Invoice structure with lines already populated
+        return result.invoices as Invoice[];
+      }
+    } catch (apiError) {
+      console.log('ℹ️ Vendor/Admin endpoint not accessible, trying customer endpoint...');
+    }
+    
+    // If that fails, we're likely a customer - fetch from user endpoint
+    // But we need to get REAL data, not mock data
     const response = await fetch('/api/invoices/user');
-    console.log('📡 API Response status:', response.status);
-    
     const result = await response.json();
-    console.log('📄 API Response data:', result);
     
-    if (result.success && result.invoices.length > 0) {
-      console.log(`✅ Loaded ${result.invoices.length} invoices from ${result.source}`);
-      return result.invoices;
-    } else {
-      console.log('ℹ️ No invoices found in database');
+    if (!result.success || !result.invoices || result.invoices.length === 0) {
+      console.log('ℹ️ No invoices found');
       return [];
     }
+    
+    console.log(`✅ Loaded ${result.invoices.length} invoices`);
+    console.log('📄 Invoice data:', result.invoices[0]); // Log first invoice to see structure
+    
+    // The user endpoint returns data in a different format, transform it
+    return result.invoices.map((inv: any) => ({
+      id: inv.dbInvoiceId || inv.id,
+      invoiceNumber: inv.id,
+      status: inv.status === 'paid' ? 'POSTED' : 'DRAFT',
+      invoiceDate: inv.issueDate,
+      dueDate: inv.dueDate,
+      totalAmount: inv.total,
+      subtotal: String(inv.amount),
+      taxAmount: String(inv.tax),
+      paidAmount: inv.status === 'paid' ? inv.total : 0,
+      balanceDue: inv.status === 'paid' ? 0 : inv.total,
+      saleOrder: {
+        id: inv.dbOrderId || inv.orderId,
+        orderNumber: inv.orderId,
+        startDate: null,
+        endDate: null,
+        customer: {
+          user: {
+            firstName: inv.orderData?.deliveryAddress?.name?.split(' ')[0] || 'Customer',
+            lastName: inv.orderData?.deliveryAddress?.name?.split(' ').slice(1).join(' ') || '',
+            email: inv.orderData?.deliveryAddress?.email || '',
+          },
+          phone: inv.orderData?.deliveryAddress?.phone || null,
+          defaultAddress: inv.orderData?.deliveryAddress?.street || null,
+        },
+        vendor: {
+          companyName: inv.vendor,
+        },
+        lines: inv.orderData?.items?.map((item: any) => ({
+          product: {
+            name: item.name,
+          },
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })) || [],
+      },
+      lines: inv.orderData?.items?.map((item: any) => ({
+        product: {
+          name: item.name,
+        },
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.totalPrice,
+      })) || [{
+        product: { name: inv.product },
+        quantity: 1,
+        unitPrice: inv.amount,
+        amount: inv.amount,
+      }],
+      payments: inv.paymentVerified ? [{
+        method: inv.paymentMethod || 'Razorpay',
+        amount: inv.total,
+        status: 'COMPLETED',
+        transactionRef: inv.paymentId || null,
+        createdAt: inv.paidDate || inv.issueDate,
+      }] : [],
+    }));
+    
   } catch (error) {
-    console.error('❌ Error loading invoices from database:', error);
+    console.error('❌ Error loading invoices:', error);
     return [];
   }
 };
@@ -69,33 +196,30 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Load invoices from database when component mounts
   useEffect(() => {
     const loadInvoices = async () => {
       try {
-        console.log('🔍 Loading invoices from database only...');
+        setLoading(true);
+        setError(null);
         
-        // Only load invoices directly from database - no localStorage fallback
         const dbInvoices = await loadInvoicesFromDatabase();
-        
-        console.log(`📊 Found ${dbInvoices.length} invoices from database`);
-        console.log('📄 Invoice data:', dbInvoices);
-        
         setInvoices(dbInvoices);
-        setLoading(false);
         
         if (dbInvoices.length > 0) {
-          console.log('✅ Loaded invoices from database successfully');
+          console.log('✅ Loaded invoices successfully');
         } else {
-          console.log('ℹ️ No invoices found in database - user needs to make a purchase');
+          console.log('ℹ️ No invoices found');
         }
-        
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Error loading invoices:', error);
+        setError(error.message || 'Failed to load invoices');
         setInvoices([]);
+      } finally {
         setLoading(false);
       }
     };
@@ -110,95 +234,116 @@ export default function InvoicesPage() {
   }, []);
 
   const filteredInvoices = invoices.filter(invoice => {
+    const productName = invoice.lines[0]?.product.name || '';
+    const vendorName = invoice.saleOrder.vendor.companyName;
+    
     const matchesSearch = 
-      invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.vendor.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === "All" || invoice.status.toLowerCase() === selectedStatus.toLowerCase();
+      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vendorName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Map invoice status to display status
+    const displayStatus = invoice.status === 'POSTED' ? 'pending' : invoice.status.toLowerCase();
+    const matchesStatus = selectedStatus === "All" || displayStatus === selectedStatus.toLowerCase();
+    
     return matchesSearch && matchesStatus;
   });
 
-  const handleDownloadInvoice = (invoiceId: string) => {
+  const handleDownloadInvoice = async (invoiceId: string) => {
     try {
-      // Find the actual invoice from invoices to get real data
-      const actualInvoice = invoices.find(inv => inv.id === invoiceId);
-      if (!actualInvoice) {
+      // Find the invoice
+      const invoice = invoices.find(inv => inv.id === invoiceId);
+      if (!invoice) {
         throw new Error('Invoice not found');
       }
 
-      // Generate invoice data using real order data
-      const invoiceData = generateSampleInvoiceData(invoiceId);
+      console.log('📄 Generating PDF for invoice:', invoice.invoiceNumber);
+      console.log('📦 Invoice lines:', invoice.lines);
+      console.log('🛒 Order lines:', invoice.saleOrder.lines);
+
+      // Get company info from public settings endpoint
+      const settingsResponse = await fetch('/api/settings/company');
+      const settingsData = await settingsResponse.json();
+      const companyInfo = settingsData.companyInfo || {
+        name: 'RentMarket Platform',
+        address: '123 Platform Street, Tech City, CA 94000',
+        phone: '+1-800-RENTALS',
+        email: 'support@rentmarket.com',
+        website: 'www.rentmarket.com',
+        gstin: '29PLATFORM1234F1Z5'
+      };
+
+      // Build invoice data from real data
+      const invoiceAPIData: InvoiceAPIData = {
+        invoiceNumber: invoice.invoiceNumber,
+        orderId: invoice.saleOrder.id,
+        orderNumber: invoice.saleOrder.orderNumber,
+        status: invoice.status,
+        invoiceDate: invoice.invoiceDate,
+        dueDate: invoice.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+        totalAmount: invoice.totalAmount,
+        subtotal: invoice.subtotal,
+        taxAmount: invoice.taxAmount,
+        serviceFee: 0, // Calculate if needed
+        paidDate: invoice.payments.find(p => p.status === 'COMPLETED')?.createdAt || null,
+        paymentMethod: invoice.payments[0]?.method || 'Razorpay',
+        startDate: invoice.saleOrder.startDate || undefined,
+        endDate: invoice.saleOrder.endDate || undefined,
+        customer: {
+          name: `${invoice.saleOrder.customer.user.firstName} ${invoice.saleOrder.customer.user.lastName}`,
+          email: invoice.saleOrder.customer.user.email,
+          phone: invoice.saleOrder.customer.phone || '+91 XXXXX XXXXX',
+          address: invoice.saleOrder.customer.defaultAddress || 'Address not provided'
+        },
+        vendor: {
+          name: invoice.saleOrder.vendor.companyName,
+          email: '',
+          phone: '',
+          address: ''
+        },
+        lines: invoice.lines.map(line => ({
+          name: line.product.name,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          amount: line.amount
+        })),
+        companyInfo
+      };
+
+      console.log('📋 Invoice API Data being sent to PDF generator:', invoiceAPIData);
+      console.log('📋 Lines being sent:', invoiceAPIData.lines);
+
+      // Build and generate PDF
+      const invoiceData = buildInvoiceData(invoiceAPIData);
+      console.log('📋 Built invoice data:', invoiceData);
+      console.log('📋 Product lines in built data:', invoiceData.productLines);
       
-      // Update the sample data with actual invoice data
-      invoiceData.id = actualInvoice.id;
-      invoiceData.orderId = actualInvoice.orderId;
-      invoiceData.product = actualInvoice.product;
-      invoiceData.vendor = actualInvoice.vendor;
-      invoiceData.amount = actualInvoice.amount;
-      invoiceData.tax = actualInvoice.tax;
-      invoiceData.serviceFee = actualInvoice.serviceFee;
-      invoiceData.total = actualInvoice.total;
-      invoiceData.status = actualInvoice.status;
-      invoiceData.issueDate = actualInvoice.issueDate;
-      invoiceData.dueDate = actualInvoice.dueDate;
-      invoiceData.paidDate = actualInvoice.paidDate;
-      invoiceData.paymentMethod = actualInvoice.paymentMethod || 'Razorpay';
-      invoiceData.rentalPeriod = actualInvoice.rentalPeriod;
-
-      // Use real order data if available
-      if (actualInvoice.orderData) {
-        const order = actualInvoice.orderData;
-        
-        // Update customer info with real delivery address
-        if (order.deliveryAddress) {
-          invoiceData.customerInfo.name = order.deliveryAddress.name;
-          invoiceData.customerInfo.email = order.deliveryAddress.email;
-          invoiceData.customerInfo.phone = order.deliveryAddress.phone;
-          invoiceData.customerInfo.address = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} - ${order.deliveryAddress.zip}`;
-        }
-
-        // Add payment verification info
-        if (order.paymentVerified && order.paymentId) {
-          invoiceData.paymentMethod = `${order.paymentMethod || 'Razorpay'} - ID: ${order.paymentId}`;
-        }
-
-        // Add order items if available
-        if (order.items && order.items.length > 0) {
-          invoiceData.productLines = order.items.map((item: any) => ({
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            amount: item.totalPrice
-          }));
-        }
-      }
-      
-      // Generate and download PDF
-      generateInvoicePDF(invoiceData);
+      await generateInvoicePDF(invoiceData);
       
       // Show success message
       const successMessage = document.createElement('div');
       successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      successMessage.textContent = `Invoice ${invoiceId} downloaded successfully!`;
+      successMessage.textContent = `Invoice ${invoice.invoiceNumber} downloaded successfully!`;
       document.body.appendChild(successMessage);
       
-      // Remove success message after 3 seconds
       setTimeout(() => {
-        document.body.removeChild(successMessage);
+        if (document.body.contains(successMessage)) {
+          document.body.removeChild(successMessage);
+        }
       }, 3000);
       
     } catch (error) {
       console.error('Error generating PDF:', error);
       
-      // Show error message
       const errorMessage = document.createElement('div');
       errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
       errorMessage.textContent = 'Error generating PDF. Please try again.';
       document.body.appendChild(errorMessage);
       
-      // Remove error message after 3 seconds
       setTimeout(() => {
-        document.body.removeChild(errorMessage);
+        if (document.body.contains(errorMessage)) {
+          document.body.removeChild(errorMessage);
+        }
       }, 3000);
     }
   };
@@ -210,12 +355,12 @@ export default function InvoicesPage() {
   };
 
   const totalPaid = filteredInvoices
-    .filter(inv => inv.status === "paid")
-    .reduce((sum, inv) => sum + inv.total, 0);
+    .filter(inv => inv.paidAmount > 0)
+    .reduce((sum, inv) => sum + inv.paidAmount, 0);
   
   const pendingAmount = filteredInvoices
-    .filter(inv => inv.status === "pending" || inv.status === "overdue")
-    .reduce((sum, inv) => sum + inv.total, 0);
+    .filter(inv => inv.balanceDue > 0)
+    .reduce((sum, inv) => sum + inv.balanceDue, 0);
 
   // Show loading state
   if (loading) {
@@ -285,7 +430,7 @@ export default function InvoicesPage() {
               <div>
                 <p className="text-sm font-medium text-[#715A5A]">Paid Invoices</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {filteredInvoices.filter(inv => inv.status === "paid").length}
+                  {filteredInvoices.filter(inv => inv.paidAmount >= inv.totalAmount).length}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
@@ -380,8 +525,26 @@ export default function InvoicesPage() {
         {/* Invoices List */}
         <div className="space-y-4">
           {filteredInvoices.map((invoice) => {
-            const statusColor = getStatusColor(invoice.status);
+            const productName = invoice.lines[0]?.product.name || 'Rental Items';
+            const vendorName = invoice.saleOrder.vendor.companyName;
+            const displayStatus = invoice.paidAmount >= invoice.totalAmount ? 'paid' : 
+                                 invoice.balanceDue > 0 ? 'pending' : 'pending';
+            
+            const statusColor = getStatusColor(displayStatus);
             const StatusIcon = statusColor.icon;
+            
+            // Format rental period
+            const formatPeriod = (start: string | null, end: string | null): string => {
+              if (!start || !end) return 'N/A';
+              const startDate = new Date(start);
+              const endDate = new Date(end);
+              const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+              return `${startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${endDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${days} days)`;
+            };
+            
+            const rentalPeriod = formatPeriod(invoice.saleOrder.startDate, invoice.saleOrder.endDate);
+            const paidDate = invoice.payments.find(p => p.status === 'COMPLETED')?.createdAt;
+            const paymentMethod = invoice.payments[0]?.method || 'Razorpay';
             
             return (
               <div key={invoice.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow border border-[#44444E]/20">
@@ -391,54 +554,47 @@ export default function InvoicesPage() {
                     <div className="flex-1 mb-4 lg:mb-0">
                       <div className="flex items-center mb-3">
                         <h3 className="font-bold text-xl mr-4 text-[#37353E]">
-                          {invoice.id}
+                          {invoice.invoiceNumber}
                         </h3>
                         <span
                           className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
                           style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
                         >
                           <StatusIcon className="h-4 w-4 mr-1" />
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                          {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
                         </span>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <h4 className="font-semibold mb-1 text-[#37353E]">
-                            {invoice.product}
+                            {productName}
                           </h4>
                           <p className="text-sm mb-1 text-[#715A5A]">
-                            <strong>Vendor:</strong> {invoice.vendor}
+                            <strong>Vendor:</strong> {vendorName}
                           </p>
                           <p className="text-sm mb-1 text-[#715A5A]">
-                            <strong>Order:</strong> {invoice.orderId}
+                            <strong>Order:</strong> {invoice.saleOrder.orderNumber}
                           </p>
                           <p className="text-sm text-[#715A5A]">
-                            <strong>Rental Period:</strong> {invoice.rentalPeriod}
+                            <strong>Rental Period:</strong> {rentalPeriod}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm mb-1 text-[#715A5A]">
-                            <strong>Issue Date:</strong> {formatDate(invoice.issueDate)}
+                            <strong>Issue Date:</strong> {formatDate(invoice.invoiceDate)}
                           </p>
                           <p className="text-sm mb-1 text-[#715A5A]">
                             <strong>Due Date:</strong> {formatDate(invoice.dueDate)}
                           </p>
-                          {invoice.paidDate && (
+                          {paidDate && (
                             <p className="text-sm mb-1 text-green-600">
-                              <strong>Paid:</strong> {formatDate(invoice.paidDate)}
+                              <strong>Paid:</strong> {formatDate(paidDate)}
                             </p>
                           )}
-                          {invoice.paymentMethod && (
-                            <p className="text-sm text-[#715A5A]">
-                              <strong>Payment:</strong> {invoice.paymentMethod}
-                            </p>
-                          )}
-                          {invoice.paymentVerified && invoice.paymentId && (
-                            <p className="text-sm text-green-600">
-                              <strong>✅ Verified:</strong> {invoice.paymentId}
-                            </p>
-                          )}
+                          <p className="text-sm text-[#715A5A]">
+                            <strong>Payment:</strong> {paymentMethod}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -447,11 +603,21 @@ export default function InvoicesPage() {
                     <div className="flex flex-col items-end space-y-3">
                       <div className="text-right">
                         <div className="text-2xl font-bold text-[#37353E]">
-                          ₹{invoice.total.toFixed(2)}
+                          ₹{invoice.totalAmount.toFixed(2)}
                         </div>
                         <div className="text-sm text-[#715A5A]">
-                          Amount: ₹{invoice.amount} + Tax: ₹{invoice.tax} + Fee: ₹{invoice.serviceFee}
+                          Subtotal: ₹{invoice.subtotal} + Tax: ₹{invoice.taxAmount}
                         </div>
+                        {invoice.paidAmount > 0 && (
+                          <div className="text-sm text-green-600">
+                            Paid: ₹{invoice.paidAmount.toFixed(2)}
+                          </div>
+                        )}
+                        {invoice.balanceDue > 0 && (
+                          <div className="text-sm text-yellow-600">
+                            Balance: ₹{invoice.balanceDue.toFixed(2)}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-2">
@@ -471,16 +637,10 @@ export default function InvoicesPage() {
                           <ArrowDownTrayIcon className="h-5 w-5" />
                         </button>
 
-                        {(invoice.status === "pending" || invoice.status === "overdue") && (
+                        {invoice.balanceDue > 0 && (
                           <button
                             onClick={() => handlePayInvoice(invoice.id)}
-                            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90 ${
-                              invoice.status === "overdue" ? "animate-pulse" : ""
-                            }`}
-                            style={{ 
-                              backgroundColor: invoice.status === "overdue" ? "#fee2e2" : "#fef3c7", 
-                              color: invoice.status === "overdue" ? "#dc2626" : "#d97706" 
-                            }}
+                            className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90 bg-yellow-100 text-yellow-700"
                           >
                             Pay Now
                           </button>

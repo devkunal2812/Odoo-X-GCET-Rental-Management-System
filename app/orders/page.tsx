@@ -17,7 +17,6 @@ import {
   ShoppingBagIcon,
   ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
-import { generateInvoicePDF, generateSampleInvoiceData } from "../../lib/invoiceGenerator";
 
 // Utility function for consistent date formatting
 const formatDate = (dateString: string) => {
@@ -136,35 +135,87 @@ export default function OrdersPage() {
     alert(`Calling ${vendorPhone}...`);
   };
 
-  const handleDownloadInvoice = (orderId: string) => {
+  const handleDownloadInvoice = async (orderId: string) => {
     try {
-      // Generate sample invoice data (in real app, this would come from API)
-      const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
+      console.log('📄 Generating invoice PDF for order:', orderId);
       
       // Find the actual order from orders to get real data
       const actualOrder = orders.find(order => order.id === orderId);
-      if (actualOrder) {
-        // Update the sample data with actual order data
-        invoiceData.id = `INV-${orderId}`;
-        invoiceData.orderId = actualOrder.id;
-        invoiceData.product = actualOrder.product.name;
-        invoiceData.vendor = actualOrder.vendor.name;
-        invoiceData.amount = actualOrder.amount;
-        invoiceData.total = actualOrder.amount + (actualOrder.amount * 0.18) + 25; // Add tax and service fee
-        invoiceData.status = actualOrder.paymentStatus === 'paid' ? 'paid' : 'pending';
-        invoiceData.rentalPeriod = `${formatDate(actualOrder.startDate)} to ${formatDate(actualOrder.endDate)} (${actualOrder.duration} ${actualOrder.unit})`;
-        
-        // Update customer info with delivery address if available
-        if (actualOrder.deliveryAddress) {
-          invoiceData.customerInfo.name = actualOrder.deliveryAddress.name;
-          invoiceData.customerInfo.email = actualOrder.deliveryAddress.email;
-          invoiceData.customerInfo.phone = actualOrder.deliveryAddress.phone;
-          invoiceData.customerInfo.address = `${actualOrder.deliveryAddress.street}, ${actualOrder.deliveryAddress.city}, ${actualOrder.deliveryAddress.state} - ${actualOrder.deliveryAddress.zip}`;
-        }
+      if (!actualOrder) {
+        throw new Error('Order not found');
       }
+
+      console.log('📦 Order data:', actualOrder);
+
+      // Get company info from public settings endpoint
+      const settingsResponse = await fetch('/api/settings/company');
+      const settingsData = await settingsResponse.json();
+      const companyInfo = settingsData.companyInfo || {
+        name: 'RentMarket Platform',
+        address: '123 Platform Street, Tech City, CA 94000',
+        phone: '+1-800-RENTALS',
+        email: 'support@rentmarket.com',
+        website: 'www.rentmarket.com',
+        gstin: '29PLATFORM1234F1Z5'
+      };
+
+      // Calculate amounts with GST (18%)
+      const subtotal = actualOrder.amount;
+      const taxAmount = subtotal * 0.18;
+      const serviceFee = 25; // Platform service fee
+      const total = subtotal + taxAmount + serviceFee;
+
+      // Build invoice data from REAL order data
+      const invoiceAPIData = {
+        invoiceNumber: `INV-${orderId}`,
+        orderId: actualOrder.id,
+        orderNumber: actualOrder.id,
+        status: actualOrder.paymentStatus === 'paid' ? 'paid' : 'pending',
+        invoiceDate: actualOrder.orderDate,
+        dueDate: actualOrder.endDate,
+        totalAmount: total,
+        subtotal: subtotal,
+        taxAmount: taxAmount,
+        serviceFee: serviceFee,
+        paidDate: actualOrder.paymentStatus === 'paid' ? actualOrder.orderDate : null,
+        paymentMethod: actualOrder.paymentMethod || 'Razorpay',
+        startDate: actualOrder.startDate,
+        endDate: actualOrder.endDate,
+        customer: {
+          name: actualOrder.deliveryAddress?.name || 'Customer',
+          email: actualOrder.deliveryAddress?.email || '',
+          phone: actualOrder.deliveryAddress?.phone || '',
+          address: actualOrder.deliveryAddress 
+            ? `${actualOrder.deliveryAddress.street}, ${actualOrder.deliveryAddress.city}, ${actualOrder.deliveryAddress.state} - ${actualOrder.deliveryAddress.zip}`
+            : 'Address not provided'
+        },
+        vendor: {
+          name: actualOrder.vendor.name,
+          email: '',
+          phone: '',
+          address: ''
+        },
+        // IMPORTANT: Use real product data here
+        lines: [{
+          name: actualOrder.product.name,  // ← Real product name from order
+          quantity: 1,
+          unitPrice: actualOrder.amount,
+          amount: actualOrder.amount
+        }],
+        companyInfo
+      };
+
+      console.log('📋 Invoice data being sent to PDF:', invoiceAPIData);
+      console.log('📋 Product lines:', invoiceAPIData.lines);
+
+      // Build and generate PDF with REAL data
+      const { buildInvoiceData, generateInvoicePDF } = await import('../../lib/invoiceGenerator');
+      const invoiceData = buildInvoiceData(invoiceAPIData);
       
-      // Generate and download PDF
-      generateInvoicePDF(invoiceData);
+      console.log('📋 Built invoice data:', invoiceData);
+      console.log('📋 Product lines in PDF:', invoiceData.productLines);
+      
+      await generateInvoicePDF(invoiceData);
       
       // Show success message
       const successMessage = document.createElement('div');
@@ -174,7 +225,9 @@ export default function OrdersPage() {
       
       // Remove success message after 3 seconds
       setTimeout(() => {
-        document.body.removeChild(successMessage);
+        if (document.body.contains(successMessage)) {
+          document.body.removeChild(successMessage);
+        }
       }, 3000);
       
     } catch (error) {
