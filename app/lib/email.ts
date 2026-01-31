@@ -1,325 +1,208 @@
 import nodemailer from 'nodemailer';
 
-// Email configuration with multiple fallback options
-const emailConfig = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+// Create reusable transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE === 'true',
+  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 60000, // 60 seconds
-  greetingTimeout: 30000,   // 30 seconds
-  socketTimeout: 60000      // 60 seconds
-};
+});
 
-// Create transporter
-const transporter = nodemailer.createTransport(emailConfig);
-
-// Email templates
-export const emailTemplates = {
-  emailVerification: (name: string, verificationLink: string) => ({
-    subject: 'Verify Your Email - RentMarket',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Verify Your Email</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #37353E 0%, #44444E 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: #37353E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉 Welcome to RentMarket!</h1>
-            <p>Your rental marketplace account is almost ready</p>
-          </div>
-          
-          <div class="content">
-            <h2>Hi ${name}!</h2>
-            
-            <p>Thank you for signing up with RentMarket. To complete your registration and start using your account, please verify your email address by clicking the button below:</p>
-            
-            <div style="text-align: center;">
-              <a href="${verificationLink}" class="button">✅ Verify Email Address</a>
-            </div>
-            
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="background: #f0f0f0; padding: 10px; border-radius: 5px; word-break: break-all;">
-              ${verificationLink}
-            </p>
-            
-            <div class="warning">
-              <strong>⚠️ Important:</strong> This verification link will expire in 24 hours. If you don't verify your email within this time, you'll need to sign up again.
-            </div>
-            
-            <h3>What's Next?</h3>
-            <ul>
-              <li>✅ Verify your email (click the button above)</li>
-              <li>🔐 Log in to your account</li>
-              <li>🛒 Start browsing and renting products</li>
-              <li>📱 Download our mobile app (coming soon)</li>
-            </ul>
-            
-            <p>If you didn't create an account with RentMarket, please ignore this email.</p>
-            
-            <p>Need help? Contact our support team at <a href="mailto:support@rentmarket.com">support@rentmarket.com</a></p>
-          </div>
-          
-          <div class="footer">
-            <p>© 2024 RentMarket. All rights reserved.</p>
-            <p>This is an automated email. Please do not reply to this message.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-      Welcome to RentMarket!
-      
-      Hi ${name},
-      
-      Thank you for signing up with RentMarket. To complete your registration, please verify your email address by visiting this link:
-      
-      ${verificationLink}
-      
-      This verification link will expire in 24 hours.
-      
-      If you didn't create an account with RentMarket, please ignore this email.
-      
-      Need help? Contact us at support@rentmarket.com
-      
-      © 2024 RentMarket. All rights reserved.
-    `
-  }),
-
-  welcomeEmail: (name: string, role: string) => ({
-    subject: 'Welcome to RentMarket! 🎉',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to RentMarket</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #37353E 0%, #44444E 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: #37353E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
-          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          .feature-box { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #37353E; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉 Welcome to RentMarket!</h1>
-            <p>Your email has been verified successfully</p>
-          </div>
-          
-          <div class="content">
-            <h2>Hi ${name}!</h2>
-            
-            <p>Congratulations! Your email has been verified and your ${role.toLowerCase()} account is now active. You can start using RentMarket right away!</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" class="button">🔐 Login to Your Account</a>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/products" class="button">🛒 Browse Products</a>
-            </div>
-            
-            ${role === 'CUSTOMER' ? `
-              <div class="feature-box">
-                <h3>🛒 As a Customer, you can:</h3>
-                <ul>
-                  <li>Browse thousands of rental products</li>
-                  <li>Book items for flexible rental periods</li>
-                  <li>Track your orders and rental history</li>
-                  <li>Rate and review products</li>
-                  <li>Get 24/7 customer support</li>
-                </ul>
-              </div>
-            ` : role === 'VENDOR' ? `
-              <div class="feature-box">
-                <h3>🏪 As a Vendor, you can:</h3>
-                <ul>
-                  <li>List unlimited products for rent</li>
-                  <li>Manage orders and inventory</li>
-                  <li>Set flexible pricing and availability</li>
-                  <li>Access detailed analytics and reports</li>
-                  <li>Grow your rental business</li>
-                </ul>
-              </div>
-            ` : ''}
-            
-            <div class="feature-box">
-              <h3>🎯 Getting Started Tips:</h3>
-              <ol>
-                <li><strong>Complete your profile:</strong> Add more details to build trust</li>
-                <li><strong>Explore the platform:</strong> Browse products and features</li>
-                <li><strong>Join our community:</strong> Follow us on social media</li>
-                <li><strong>Get help:</strong> Check our help center or contact support</li>
-              </ol>
-            </div>
-            
-            <p>Need help getting started? Our support team is here to help at <a href="mailto:support@rentmarket.com">support@rentmarket.com</a></p>
-          </div>
-          
-          <div class="footer">
-            <p>© 2024 RentMarket. All rights reserved.</p>
-            <p>Follow us: <a href="#">Facebook</a> | <a href="#">Twitter</a> | <a href="#">Instagram</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-      Welcome to RentMarket!
-      
-      Hi ${name},
-      
-      Congratulations! Your email has been verified and your ${role.toLowerCase()} account is now active.
-      
-      Login to your account: ${process.env.NEXT_PUBLIC_APP_URL}/login
-      Browse products: ${process.env.NEXT_PUBLIC_APP_URL}/products
-      
-      Need help? Contact us at support@rentmarket.com
-      
-      © 2024 RentMarket. All rights reserved.
-    `
-  })
-};
-
-// Send email function with multiple retry attempts
-export async function sendEmail(to: string, template: { subject: string; html: string; text: string }) {
-  // Always log the verification link for development/debugging
-  if (template.subject.includes('Verify')) {
-    const linkMatch = template.html.match(/href="([^"]*verify-email[^"]*)"/);
-    if (linkMatch) {
-      console.log('\n🔗 ===== VERIFICATION LINK =====');
-      console.log('🔗 Email:', to);
-      console.log('🔗 Link:', linkMatch[1]);
-      console.log('🔗 =============================\n');
-    }
+// Verify transporter configuration
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Email transporter error:', error);
+  } else {
+    console.log('✅ Email server is ready to send messages');
   }
+});
 
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+export async function sendEmail({ to, subject, html, text }: EmailOptions) {
   try {
-    // Check if email configuration is available
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.log('\n📧 ===== EMAIL WOULD BE SENT =====');
-      console.log('📧 To:', to);
-      console.log('📧 Subject:', template.subject);
-      console.log('📧 Please configure SMTP credentials');
-      console.log('📧 ================================\n');
-      return { success: true, message: 'Email logged (no SMTP config)' };
-    }
-
-    const mailOptions = {
-      from: `${process.env.FROM_NAME || 'RentMarket'} <${process.env.FROM_EMAIL || process.env.SMTP_USER}>`,
+    const info = await transporter.sendMail({
+      from: `"${process.env.FROM_NAME || 'RentMarket'}" <${process.env.FROM_EMAIL}>`,
       to,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-    };
+      subject,
+      html,
+      text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+    });
 
-    console.log(`📧 Attempting to send email to: ${to}`);
-    
-    // Try sending with current configuration
-    try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully!');
-      console.log('📧 Message ID:', info.messageId);
-      return { success: true, messageId: info.messageId };
-    } catch (primaryError) {
-      console.log('❌ Primary SMTP failed, trying alternative configuration...');
-      
-      // Try with port 465 (SSL)
-      const alternativeTransporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-      
-      try {
-        const info = await alternativeTransporter.sendMail(mailOptions);
-        console.log('✅ Email sent via alternative configuration!');
-        console.log('📧 Message ID:', info.messageId);
-        return { success: true, messageId: info.messageId };
-      } catch (secondaryError) {
-        throw primaryError; // Throw the original error
-      }
-    }
-    
-  } catch (error) {
-    console.error('❌ All email sending attempts failed:', error.message);
-    
-    // Log detailed error information
-    if (error.code === 'EAUTH') {
-      console.log('\n💡 Authentication Error:');
-      console.log('   Your Gmail account needs an App Password');
-      console.log('   1. Go to Google Account Security');
-      console.log('   2. Enable 2-Factor Authentication');
-      console.log('   3. Generate App Password for Mail');
-      console.log('   4. Replace SMTP_PASS with the App Password');
-    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
-      console.log('\n💡 Connection Error:');
-      console.log('   Your network may be blocking SMTP connections');
-      console.log('   1. Check firewall settings');
-      console.log('   2. Try different network (mobile hotspot)');
-      console.log('   3. Contact ISP about SMTP port blocking');
-    }
-    
-    // For now, return success so signup doesn't fail
-    console.log('\n📧 ===== EMAIL FALLBACK =====');
-    console.log('📧 To:', to);
-    console.log('📧 Subject:', template.subject);
-    console.log('📧 Status: Logged (SMTP failed)');
-    console.log('📧 ===========================\n');
-    
-    return { success: true, message: 'Email logged (SMTP failed)' };
+    console.log('✅ Email sent successfully:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error('❌ Error sending email:', error);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 }
 
-// Send verification email
-export async function sendVerificationEmail(email: string, name: string, token: string) {
-  const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
-  const template = emailTemplates.emailVerification(name, verificationLink);
-  
-  // Always log the verification link for development
-  console.log('\n🔗 ===== VERIFICATION LINK =====');
-  console.log('🔗 User:', name);
-  console.log('🔗 Email:', email);
-  console.log('🔗 Link:', verificationLink);
-  console.log('🔗 Token:', token);
-  console.log('🔗 =============================\n');
-  
-  return await sendEmail(email, template);
+// Email Templates
+
+export function getVerificationEmailHTML(verificationLink: string, firstName: string) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Email</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">RentMarket</h1>
+              <p style="color: #ffffff; margin: 10px 0 0 0; opacity: 0.9;">Multi-vendor Rental Marketplace</p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 24px;">Welcome, ${firstName}!</h2>
+              <p style="color: #666666; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">
+                Thank you for signing up with RentMarket. To complete your registration and start renting amazing products, please verify your email address.
+              </p>
+              <p style="color: #666666; line-height: 1.6; margin: 0 0 30px 0; font-size: 16px;">
+                Click the button below to verify your email:
+              </p>
+              
+              <!-- Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${verificationLink}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                      Verify Email Address
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="color: #999999; line-height: 1.6; margin: 30px 0 0 0; font-size: 14px;">
+                Or copy and paste this link into your browser:
+              </p>
+              <p style="color: #667eea; line-height: 1.6; margin: 10px 0 0 0; font-size: 14px; word-break: break-all;">
+                ${verificationLink}
+              </p>
+              
+              <p style="color: #999999; line-height: 1.6; margin: 30px 0 0 0; font-size: 14px;">
+                This link will expire in 24 hours for security reasons.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+              <p style="color: #999999; margin: 0 0 10px 0; font-size: 14px;">
+                If you didn't create an account with RentMarket, you can safely ignore this email.
+              </p>
+              <p style="color: #999999; margin: 0; font-size: 12px;">
+                © 2024 RentMarket. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
 }
 
-// Send welcome email after verification
-export async function sendWelcomeEmail(email: string, name: string, role: string) {
-  const template = emailTemplates.welcomeEmail(name, role);
-  
-  return await sendEmail(email, template);
+export function getPasswordResetEmailHTML(resetLink: string, firstName: string) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Password</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">RentMarket</h1>
+              <p style="color: #ffffff; margin: 10px 0 0 0; opacity: 0.9;">Password Reset Request</p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 24px;">Hello, ${firstName}</h2>
+              <p style="color: #666666; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">
+                We received a request to reset your password for your RentMarket account.
+              </p>
+              <p style="color: #666666; line-height: 1.6; margin: 0 0 30px 0; font-size: 16px;">
+                Click the button below to reset your password:
+              </p>
+              
+              <!-- Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${resetLink}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="color: #999999; line-height: 1.6; margin: 30px 0 0 0; font-size: 14px;">
+                Or copy and paste this link into your browser:
+              </p>
+              <p style="color: #667eea; line-height: 1.6; margin: 10px 0 0 0; font-size: 14px; word-break: break-all;">
+                ${resetLink}
+              </p>
+              
+              <p style="color: #999999; line-height: 1.6; margin: 30px 0 0 0; font-size: 14px;">
+                This link will expire in 1 hour for security reasons.
+              </p>
+              
+              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 30px 0 0 0; border-radius: 4px;">
+                <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.6;">
+                  <strong>Security Notice:</strong> If you didn't request a password reset, please ignore this email or contact support if you have concerns about your account security.
+                </p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+              <p style="color: #999999; margin: 0 0 10px 0; font-size: 14px;">
+                Need help? Contact us at support@rentmarket.com
+              </p>
+              <p style="color: #999999; margin: 0; font-size: 12px;">
+                © 2024 RentMarket. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
 }

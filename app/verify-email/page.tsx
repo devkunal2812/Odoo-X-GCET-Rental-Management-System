@@ -1,5 +1,10 @@
 "use client";
 
+import { useEffect, useState, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -13,13 +18,11 @@ import {
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'already-verified'>('loading');
-  const [message, setMessage] = useState('');
-  const [email, setEmail] = useState('');
+  const router = useRouter();
+  const { verifyEmail, loading, error } = useAuth();
+  const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
 
   useEffect(() => {
-    const success = searchParams.get('success');
-    const error = searchParams.get('error');
     const token = searchParams.get('token');
 
     if (success) {
@@ -75,46 +78,22 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    setStatus('loading');
-    setMessage('Verifying your email...');
-
-    try {
-      const response = await fetch('/api/auth/verify-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setStatus('success');
-        setMessage(result.message || 'Email verified successfully!');
-      } else {
-        setStatus('error');
-        setMessage(result.error || 'Verification failed. Please try again.');
+    const verify = async () => {
+      try {
+        await verifyEmail({ token });
+        setVerificationStatus('success');
+        
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+          router.push('/login?message=Email verified successfully. You can now login.');
+        }, 3000);
+      } catch (err) {
+        setVerificationStatus('error');
       }
-    } catch (error) {
-      setStatus('error');
-      setMessage('Network error. Please check your connection and try again.');
-    }
-  };
+    };
 
-  const handleResendEmail = async () => {
-    if (!email) {
-      alert('Please enter your email address first.');
-      return;
-    }
-
-    try {
-      // This would call a resend verification email API
-      alert('Resend functionality will be implemented. For now, please sign up again if your token expired.');
-    } catch (error) {
-      alert('Failed to resend verification email. Please try again.');
-    }
-  };
+    verify();
+  }, [searchParams, verifyEmail, router]);
 
   return (
     <div className="min-h-screen bg-[#D3DAD9] flex items-center justify-center p-4">
