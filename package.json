@@ -19,20 +19,22 @@
     "test:api:dev": "TEST_BASE_URL=http://localhost:3000 node tests/api-manual-test.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.2",
-    "bcryptjs": "^3.0.3",
-    "jsonwebtoken": "^9.0.3",
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@prisma/client": "^6.19.2",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "framer-motion": "^12.29.2",
+    "heroicons": "^2.2.0",
     "html2canvas": "^1.4.1",
+    "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.0.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "prisma": "^6.19.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
