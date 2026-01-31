@@ -1,94 +1,58 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Header from "../../../components/Header";
-import { ShoppingCartIcon, HeartIcon, StarIcon } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
+import { ShoppingCartIcon, HeartIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { addToCart, isProductInCart } from "../../../lib/cart";
-
-// Mock product data
-const mockProduct = {
-  id: "1",
-  name: "Professional Camera Kit",
-  description: "Complete professional camera kit including DSLR camera, multiple lenses, tripod, and lighting equipment. Perfect for photography sessions, events, and video production.",
-  images: [
-    "/api/placeholder/600/400",
-    "/api/placeholder/600/400", 
-    "/api/placeholder/600/400"
-  ],
-  price: 25,
-  priceUnit: "day" as const,
-  vendor: {
-    id: "v1",
-    name: "TechRent Pro",
-    logo: "/api/placeholder/100/100",
-    rating: 4.8,
-    reviews: 324
-  },
-  category: "Electronics",
-  rating: 4.8,
-  reviews: 124,
-  quantityOnHand: 5,
-  attributes: [
-    {
-      id: "color",
-      name: "Color",
-      displayType: "pills" as const,
-      values: ["Black", "Silver"]
-    },
-    {
-      id: "lens",
-      name: "Lens Type", 
-      displayType: "radio" as const,
-      values: ["Standard Kit", "Professional Kit", "Premium Kit"]
-    }
-  ],
-  rentalPeriods: [
-    { unit: "hour" as const, price: 5, minDuration: 4 },
-    { unit: "day" as const, price: 25, minDuration: 1 },
-    { unit: "week" as const, price: 150, minDuration: 1 }
-  ]
-};
-
-const mockReviews = [
-  {
-    id: "1",
-    customerName: "John D.",
-    rating: 5,
-    comment: "Excellent camera kit! Everything was in perfect condition and the vendor was very helpful.",
-    date: "2024-01-15"
-  },
-  {
-    id: "2", 
-    customerName: "Sarah M.",
-    rating: 4,
-    comment: "Great quality equipment. The pickup process was smooth and professional.",
-    date: "2024-01-10"
-  },
-  {
-    id: "3",
-    customerName: "Mike R.",
-    rating: 5,
-    comment: "Perfect for my wedding photography. Highly recommend this rental!",
-    date: "2024-01-05"
-  }
-];
+import { productService } from "@/app/lib/services/products";
+import type { Product } from "@/types/api";
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
-  const [selectedRentalPeriod, setSelectedRentalPeriod] = useState(mockProduct.rentalPeriods[1]);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedRentalPeriodIndex, setSelectedRentalPeriodIndex] = useState(0);
   const [rentalDuration, setRentalDuration] = useState(1);
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
-  // Check if product is in cart when component mounts and when cart changes
-  React.useEffect(() => {
+  // Fetch product data
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await productService.getById(params.id as string);
+        if (response.success && response.product) {
+          // Check if product is published
+          if (!response.product.published) {
+            setError("This product is not available");
+            return;
+          }
+          setProduct(response.product);
+        } else {
+          setError("Product not found");
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load product");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (params.id) {
+      fetchProduct();
+    }
+  }, [params.id]);
+
+  // Check if product is in cart
+  useEffect(() => {
     const checkCartStatus = () => {
       const inCart = isProductInCart(params.id as string);
       setIsInCart(inCart);
@@ -96,49 +60,68 @@ export default function ProductDetailPage() {
 
     checkCartStatus();
     
-    // Listen for cart updates
     const handleCartUpdate = () => checkCartStatus();
     window.addEventListener('cartUpdated', handleCartUpdate);
     
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, [params.id]);
 
-  const totalPrice = selectedRentalPeriod.price * rentalDuration * quantity;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-secondary-50 mt-10">
+        <Header currentPage="products" />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    );
+  }
 
-  const handleAttributeChange = (attributeId: string, value: string) => {
-    setSelectedAttributes(prev => ({
-      ...prev,
-      [attributeId]: value
-    }));
-  };
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-secondary-50 mt-10">
+        <Header currentPage="products" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+            <h2 className="text-2xl font-bold text-red-800 mb-2">Product Not Found</h2>
+            <p className="text-red-600 mb-6">{error || "The product you're looking for doesn't exist."}</p>
+            <Link
+              href="/products"
+              className="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Back to Products
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract product data
+  const selectedRentalPeriod = product.pricing?.[selectedRentalPeriodIndex];
+  const totalPrice = selectedRentalPeriod ? selectedRentalPeriod.price * rentalDuration * quantity : 0;
+  const vendorName = product.vendor?.companyName || 'Unknown Vendor';
+  const quantityOnHand = product.inventory?.quantityOnHand || 0;
+  const extraOptions = product.extraOptions ? JSON.parse(product.extraOptions as string) : [];
 
   const handleAddToCart = () => {
-    if (isInCart) return; // Don't add if already in cart
-    
-    console.log('Adding product to cart from detail page:', {
-      productId: params.id,
-      quantity,
-      rentalDuration,
-      selectedRentalPeriod,
-      selectedAttributes
-    }); // Debug log
+    if (isInCart || !selectedRentalPeriod || quantityOnHand === 0) return;
     
     addToCart({
       productId: params.id as string,
       product: {
-        id: mockProduct.id,
-        name: mockProduct.name,
-        image: mockProduct.images[0],
-        vendor: mockProduct.vendor.name
+        id: product.id,
+        name: product.name,
+        image: '/api/placeholder/400/300',
+        vendor: vendorName
       },
       quantity,
       rentalDuration,
-      rentalUnit: selectedRentalPeriod.unit,
+      rentalUnit: selectedRentalPeriod.rentalPeriod?.name.toLowerCase() as 'hour' | 'day' | 'week',
       unitPrice: selectedRentalPeriod.price,
-      selectedAttributes
+      selectedAttributes: {}
     });
     
-    // Show success feedback
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 2000);
   };
@@ -153,9 +136,9 @@ export default function ProductDetailPage() {
           <ol className="flex items-center space-x-2 text-sm bg-white px-4 py-3 rounded-lg shadow-sm">
             <li><Link href="/" className="hover:underline font-medium text-secondary-600">Home</Link></li>
             <li className="text-secondary-400">/</li>
-       <li><Link href="/products" className="hover:underline font-medium text-secondary-600">Products</Link></li>
+            <li><Link href="/products" className="hover:underline font-medium text-secondary-600">Products</Link></li>
             <li className="text-secondary-400">/</li>
-            <li className="font-semibold text-secondary-900">{mockProduct.name}</li>
+            <li className="font-semibold text-secondary-900">{product.name}</li>
           </ol>
         </nav>
 
@@ -164,36 +147,20 @@ export default function ProductDetailPage() {
           <div className="bg-white p-6 rounded-2xl shadow-lg">
             <div className="mb-4">
               <div className="aspect-w-4 aspect-h-3 rounded-xl overflow-hidden shadow-md">
-                <div className="w-full h-96 rounded-xl flex items-center justify-center text-white text-lg font-semibold bg-secondary-400">
-                  {mockProduct.name} - Image {selectedImage + 1}
+                <div className="w-full h-96 rounded-xl flex items-center justify-center bg-gradient-to-br from-primary-100 to-secondary-100">
+                  <span className="text-6xl">📦</span>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {mockProduct.images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`aspect-w-1 aspect-h-1 rounded-lg overflow-hidden transition-all hover:shadow-md ${
-                    selectedImage === index ? 'ring-4 ring-primary-500 ring-opacity-50' : 'ring-2 ring-transparent'
-                  }`}
-                  style={{ 
-                    borderColor: selectedImage === index ? "var(--primary-500)" : "var(--secondary-200)",
-                    borderWidth: "2px"
-                  } as React.CSSProperties}
-                >
-                  <div className="w-full h-24 rounded-lg flex items-center justify-center text-white text-sm font-medium bg-secondary-400">
-                    {index + 1}
-                  </div>
-                </button>
-              ))}
+            <div className="text-center text-sm text-secondary-600 mt-4">
+              {product.name}
             </div>
           </div>
 
           {/* Product Info */}
           <div className="bg-white p-8 rounded-2xl shadow-lg">
             <div className="flex justify-between items-start mb-4">
-              <h1 className="text-3xl font-bold text-secondary-900">{mockProduct.name}</h1>
+              <h1 className="text-3xl font-bold text-secondary-900">{product.name}</h1>
               <button
                 onClick={() => setIsWishlisted(!isWishlisted)}
                 className="p-2 rounded-full hover:bg-gray-100"
@@ -209,99 +176,51 @@ export default function ProductDetailPage() {
             {/* Vendor Info */}
             <div className="flex items-center mb-6 p-4 rounded-xl bg-secondary-100">
               <div className="w-12 h-12 rounded-full mr-4 flex items-center justify-center text-white font-bold bg-secondary-600">
-                {mockProduct.vendor.name.charAt(0)}
+                {vendorName.charAt(0)}
               </div>
               <div>
-                <p className="font-bold text-lg text-secondary-900">{mockProduct.vendor.name}</p>
-                <div className="flex items-center">
-                  <div className="flex text-yellow-400 mr-2">
-                    {[...Array(5)].map((_, i) => (
-                      <StarSolidIcon key={i} className={`h-4 w-4 ${i < Math.floor(mockProduct.vendor.rating) ? 'text-yellow-400' : 'text-gray-300'}`} />
-                    ))}
-                  </div>
-                  <span className="text-sm font-medium text-secondary-600">
-                    {mockProduct.vendor.rating} ({mockProduct.vendor.reviews} reviews)
-                  </span>
-                </div>
+                <p className="font-bold text-lg text-secondary-900">{vendorName}</p>
+                <p className="text-sm text-secondary-600">{product.productType}</p>
               </div>
-            </div>
-
-            {/* Rating */}
-            <div className="flex items-center mb-6">
-              <div className="flex text-yellow-400 mr-2">
-                {[...Array(5)].map((_, i) => (
-                  <StarSolidIcon key={i} className={`h-5 w-5 ${i < Math.floor(mockProduct.rating) ? 'text-yellow-400' : 'text-gray-300'}`} />
-                ))}
-              </div>
-              <span className="text-secondary-600">
-                {mockProduct.rating} ({mockProduct.reviews} reviews)
-              </span>
             </div>
 
             {/* Description */}
-            <p className="mb-6 text-secondary-700">{mockProduct.description}</p>
+            <p className="mb-6 text-secondary-700">{product.description || 'No description available'}</p>
 
-            {/* Rental Period Selection */}
-            <div className="mb-6">
-              <h3 className="font-semibold mb-3 text-secondary-900">Rental Period</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {mockProduct.rentalPeriods.map((period) => (
-                  <button
-                    key={period.unit}
-                    onClick={() => setSelectedRentalPeriod(period)}
-                    className={`p-3 border-2 rounded-lg text-center transition-colors ${
-                      selectedRentalPeriod.unit === period.unit
-                        ? 'text-white bg-primary-600 border-primary-600'
-                        : 'hover:opacity-80 border-secondary-300 text-secondary-900'
-                    }`}
-                  >
-                    <div className="font-semibold">₹{period.price}</div>
-                    <div className="text-sm">per {period.unit}</div>
-                  </button>
-                ))}
+            {/* Stock Status */}
+            <div className="mb-6 p-4 rounded-lg bg-secondary-50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-secondary-700">Availability:</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  quantityOnHand > 0 ? 'bg-success-100 text-success-800' : 'bg-error-100 text-error-800'
+                }`}>
+                  {quantityOnHand > 0 ? `${quantityOnHand} in stock` : 'Out of stock'}
+                </span>
               </div>
             </div>
 
-            {/* Attributes */}
-            {mockProduct.attributes.map((attribute) => (
-              <div key={attribute.id} className="mb-6">
-                <h3 className="font-semibold mb-3 text-secondary-900">{attribute.name}</h3>
-                {attribute.displayType === 'pills' && (
-                  <div className="flex flex-wrap gap-2">
-                    {attribute.values.map((value) => (
-                      <button
-                        key={value}
-                        onClick={() => handleAttributeChange(attribute.id, value)}
-                        className={`px-4 py-2 border-2 rounded-full transition-colors ${
-                          selectedAttributes[attribute.id] === value
-                            ? 'bg-secondary-600 border-secondary-600 text-white'
-                            : 'border-secondary-300 text-secondary-900 hover:opacity-80'
-                        }`}
-                      >
-                        {value}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {attribute.displayType === 'radio' && (
-                  <div className="space-y-2">
-                    {attribute.values.map((value) => (
-                      <label key={value} className="flex items-center">
-                        <input
-                          type="radio"
-                          name={attribute.id}
-                          value={value}
-                          checked={selectedAttributes[attribute.id] === value}
-                          onChange={(e) => handleAttributeChange(attribute.id, e.target.value)}
-                          className="mr-2 accent-secondary-600"
-                        />
-                        <span className="text-secondary-900">{value}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+            {/* Rental Period Selection */}
+            {product.pricing && product.pricing.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-semibold mb-3 text-secondary-900">Rental Period</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {product.pricing.map((pricing: any, index: number) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedRentalPeriodIndex(index)}
+                      className={`p-3 border-2 rounded-lg text-center transition-colors ${
+                        selectedRentalPeriodIndex === index
+                          ? 'text-white bg-primary-600 border-primary-600'
+                          : 'hover:opacity-80 border-secondary-300 text-secondary-900'
+                      }`}
+                    >
+                      <div className="font-semibold">₹{pricing.price}</div>
+                      <div className="text-sm">per {pricing.rentalPeriod?.name || 'period'}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
 
             {/* Quantity and Duration */}
             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -310,20 +229,21 @@ export default function ProductDetailPage() {
                 <select
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white"
+                  disabled={quantityOnHand === 0}
+                  className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white disabled:opacity-50"
                 >
-                  {[...Array(mockProduct.quantityOnHand)].map((_, i) => (
-                    <option key={i + 1} value={i + 1} className="text-secondary-900 bg-white">{i + 1}</option>
+                  {[...Array(Math.min(quantityOnHand, 10))].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-secondary-900">
-                  Duration ({selectedRentalPeriod.unit}s)
+                  Duration ({selectedRentalPeriod?.rentalPeriod?.name || 'period'}s)
                 </label>
                 <input
                   type="number"
-                  min={selectedRentalPeriod.minDuration}
+                  min={1}
                   value={rentalDuration}
                   onChange={(e) => setRentalDuration(Number(e.target.value))}
                   className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white"
@@ -335,70 +255,117 @@ export default function ProductDetailPage() {
             <div className="p-4 rounded-lg mb-6 bg-white border-2 border-secondary-300">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-secondary-900">Total Price:</span>
-                <span className="text-2xl font-bold text-primary-600">₹{totalPrice}</span>
+                <span className="text-2xl font-bold text-primary-600">₹{totalPrice.toFixed(2)}</span>
               </div>
-              <p className="text-sm mt-1 text-secondary-600">
-                {quantity} × ₹{selectedRentalPeriod.price} × {rentalDuration} {selectedRentalPeriod.unit}(s)
-              </p>
+              {selectedRentalPeriod && (
+                <p className="text-sm mt-1 text-secondary-600">
+                  {quantity} × ₹{selectedRentalPeriod.price} × {rentalDuration} {selectedRentalPeriod.rentalPeriod?.name || 'period'}(s)
+                </p>
+              )}
             </div>
 
             {/* Add to Cart Button */}
             <button
               onClick={handleAddToCart}
-              disabled={isInCart}
+              disabled={isInCart || quantityOnHand === 0}
               className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-3 ${
-                isInCart 
-                  ? 'bg-success-600 text-white cursor-default'
-                  : justAdded
-                    ? 'bg-success-600 text-white'
-                    : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white'
+                quantityOnHand === 0
+                  ? 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+                  : isInCart 
+                    ? 'bg-success-600 text-white cursor-default'
+                    : justAdded
+                      ? 'bg-success-600 text-white'
+                      : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white'
               }`}
-              style={isInCart || justAdded ? { transform: 'none' } : {}}
+              style={isInCart || justAdded || quantityOnHand === 0 ? { transform: 'none' } : {}}
             >
-              <ShoppingCartIcon className="h-6 w-6" />
-              <span>
-                {isInCart 
-                  ? 'Already in Cart' 
-                  : justAdded 
-                    ? 'Added to Cart!' 
-                    : `Add to Cart - $${totalPrice}`
-                }
-              </span>
+              {quantityOnHand === 0 ? (
+                <>
+                  <ShoppingCartIcon className="h-6 w-6" />
+                  <span>Out of Stock</span>
+                </>
+              ) : isInCart ? (
+                <>
+                  <CheckIcon className="h-6 w-6" />
+                  <span>Already in Cart</span>
+                </>
+              ) : justAdded ? (
+                <>
+                  <CheckIcon className="h-6 w-6" />
+                  <span>Added to Cart!</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCartIcon className="h-6 w-6" />
+                  <span>Add to Cart - ₹{totalPrice.toFixed(2)}</span>
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Reviews Section */}
+        {/* Product Details Section */}
         <div className="mt-16">
           <div className="bg-white rounded-2xl shadow-lg p-8">
-            <h2 className="text-3xl font-bold mb-8 flex items-center text-secondary-900">
-              <StarSolidIcon className="h-8 w-8 text-yellow-400 mr-3" />
-              Customer Reviews ({mockReviews.length})
-            </h2>
-            <div className="space-y-6">
-              {mockReviews.map((review) => (
-                <div key={review.id} className="p-6 rounded-xl border-2 border-secondary-200 bg-white hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <div className="w-12 h-12 rounded-full mr-4 flex items-center justify-center text-white font-bold bg-secondary-600">
-                        {review.customerName.charAt(0)}
+            <h2 className="text-3xl font-bold mb-6 text-secondary-900">Product Details</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold text-lg mb-2 text-secondary-900">Product Type</h3>
+                <p className="text-secondary-700">{product.productType}</p>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-lg mb-2 text-secondary-900">Rentable</h3>
+                <p className="text-secondary-700">{product.isRentable ? 'Yes' : 'No'}</p>
+              </div>
+              
+              {product.variants && product.variants.length > 0 && (
+                <div className="md:col-span-2">
+                  <h3 className="font-semibold text-lg mb-3 text-secondary-900">Available Variants</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {product.variants.map((variant: any) => (
+                      <div key={variant.id} className="p-3 border border-secondary-200 rounded-lg">
+                        <div className="font-medium text-secondary-900">{variant.name}</div>
+                        <div className="text-sm text-secondary-600">SKU: {variant.sku}</div>
+                        {variant.priceModifier !== 0 && (
+                          <div className="text-sm text-primary-600">
+                            {variant.priceModifier > 0 ? '+' : ''}₹{variant.priceModifier}
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <p className="font-bold text-lg text-secondary-900">{review.customerName}</p>
-                        <div className="flex text-yellow-400">
-                          {[...Array(5)].map((_, i) => (
-                            <StarSolidIcon key={i} className={`h-5 w-5 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {extraOptions.length > 0 && (
+                <div className="md:col-span-2">
+                  <h3 className="font-semibold text-lg mb-3 text-secondary-900">Extra Options</h3>
+                  <div className="space-y-3">
+                    {extraOptions.map((option: any, index: number) => (
+                      <div key={index} className="p-3 border border-secondary-200 rounded-lg">
+                        <div className="font-medium text-secondary-900 mb-2">{option.label}</div>
+                        <div className="flex flex-wrap gap-2">
+                          {option.options?.map((opt: any, optIndex: number) => (
+                            <span
+                              key={optIndex}
+                              className="inline-flex items-center gap-1 text-sm bg-primary-50 text-primary-700 px-3 py-1 rounded-full"
+                            >
+                              {opt.value}
+                              {opt.priceImpact ? (
+                                <span className="text-xs text-primary-500">
+                                  (+₹{opt.priceImpact})
+                                </span>
+                              ) : null}
+                            </span>
                           ))}
                         </div>
                       </div>
-                    </div>
-                    <span className="text-sm font-medium px-3 py-1 rounded-full text-secondary-600 bg-secondary-100">
-                      {review.date}
-                    </span>
+                    ))}
                   </div>
-                  <p className="text-lg leading-relaxed text-secondary-700">{review.comment}</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -427,7 +394,6 @@ export default function ProductDetailPage() {
               <ul className="space-y-2">
                 <li><Link href="/help" className="hover:opacity-80 transition-opacity text-secondary-400">Help Center</Link></li>
                 <li><Link href="/terms" className="hover:opacity-80 transition-opacity text-secondary-400">Terms & Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity text-secondary-400">Privacy Policy</Link></li>
               </ul>
             </div>
             <div>
