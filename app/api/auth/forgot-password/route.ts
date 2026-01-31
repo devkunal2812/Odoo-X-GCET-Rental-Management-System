@@ -44,10 +44,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send password reset email
-    // For now, we'll just log the token
-    console.log(`Password reset token for ${user.email}: ${passwordResetToken}`);
-    console.log(`Reset link: http://localhost:3000/api/auth/reset-password?token=${passwordResetToken}`);
+    // Send password reset email
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${passwordResetToken}`;
+    
+    try {
+      const { sendEmail, getPasswordResetEmailHTML } = await import('@/app/lib/email');
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset Your Password - RentMarket',
+        html: getPasswordResetEmailHTML(resetLink, user.firstName),
+      });
+      console.log(`✅ Password reset email sent to ${user.email}`);
+    } catch (emailError: any) {
+      console.error(`❌ Failed to send password reset email to ${user.email}:`, emailError.message);
+      // Don't fail the request if email fails
+    }
+    
+    // Also log to console for development
+    console.log(`\n🔐 Password Reset Requested for ${user.email}`);
+    console.log(`🔗 Reset link: ${resetLink}`);
+    console.log(`⏰ Token expires in 1 hour\n`);
 
     // Create audit log
     await prisma.auditLog.create({

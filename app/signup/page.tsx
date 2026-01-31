@@ -89,8 +89,10 @@ export default function SignupPage() {
       const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
       if (!formData.gstin) {
         newErrors.gstin = "GSTIN is required for vendors";
+      } else if (formData.gstin.length !== 15) {
+        newErrors.gstin = "GSTIN must be exactly 15 characters";
       } else if (!gstinRegex.test(formData.gstin.toUpperCase())) {
-        newErrors.gstin = "Please enter a valid GSTIN (15 characters)";
+        newErrors.gstin = "Invalid GSTIN format. Example: 29ABCDE1234F1Z5 (13th character must be 'Z')";
       }
     }
 
@@ -427,7 +429,7 @@ export default function SignupPage() {
                       className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white ${
                         errors.gstin ? "border-error-500" : "border-secondary-300"
                       }`}
-                      placeholder="Enter your GSTIN (15 characters)"
+                      placeholder="Enter your GSTIN (e.g., 29ABCDE1234F1Z5)"
                       maxLength={15}
                     />
                   </div>
@@ -435,7 +437,7 @@ export default function SignupPage() {
                     <p className="mt-1 text-sm text-error-600">{errors.gstin}</p>
                   )}
                   <p className="mt-1 text-xs text-secondary-500">
-                    Required for invoicing and tax compliance
+                    Format: 2 digits + 5 letters + 4 digits + 1 letter + 1 digit/letter + Z + 1 digit/letter. Required for invoicing and tax compliance.
                   </p>
                 </div>
               )}

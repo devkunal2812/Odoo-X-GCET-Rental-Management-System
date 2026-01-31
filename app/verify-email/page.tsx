@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
@@ -11,8 +11,14 @@ export default function VerifyEmailPage() {
   const router = useRouter();
   const { verifyEmail, loading, error } = useAuth();
   const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
+  const hasVerified = useRef(false); // Prevent multiple verification attempts
 
   useEffect(() => {
+    // Prevent multiple calls
+    if (hasVerified.current) {
+      return;
+    }
+
     const token = searchParams.get('token');
     
     if (!token) {
@@ -21,6 +27,8 @@ export default function VerifyEmailPage() {
     }
 
     const verify = async () => {
+      hasVerified.current = true; // Mark as attempted
+      
       try {
         await verifyEmail({ token });
         setVerificationStatus('success');
@@ -35,7 +43,7 @@ export default function VerifyEmailPage() {
     };
 
     verify();
-  }, [searchParams, verifyEmail, router]);
+  }, [searchParams, verifyEmail, router]); // Keep dependencies but use ref to prevent re-runs
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary-50 to-primary-50">

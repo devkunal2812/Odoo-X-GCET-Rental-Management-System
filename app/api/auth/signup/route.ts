@@ -73,10 +73,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send verification email
-    // For now, we'll just log the token
-    console.log(`Email verification token for ${user.email}: ${emailVerificationToken}`);
-    console.log(`Verification link: http://localhost:3000/api/auth/verify-email?token=${emailVerificationToken}`);
+    // Send verification email
+    const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${emailVerificationToken}`;
+    
+    try {
+      const { sendEmail, getVerificationEmailHTML } = await import('@/app/lib/email');
+      await sendEmail({
+        to: user.email,
+        subject: 'Verify Your Email - RentMarket',
+        html: getVerificationEmailHTML(verificationLink, user.firstName),
+      });
+      console.log(`✅ Verification email sent to ${user.email}`);
+    } catch (emailError: any) {
+      console.error(`❌ Failed to send verification email to ${user.email}:`, emailError.message);
+      // Don't fail the signup if email fails - user can request resend
+    }
+    
+    // Also log to console for development
+    console.log(`\n📧 Email Verification Required for ${user.email}`);
+    console.log(`🔗 Verification link: ${verificationLink}`);
+    console.log(`⏰ Token expires in 24 hours\n`);
 
     // Generate JWT (but user can't login until email is verified)
     const token = generateToken({
