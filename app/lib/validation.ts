@@ -8,20 +8,21 @@ export const signupSchema = z.object({
   password: z.string().min(8),
   companyName: z.string().optional(),
   gstin: z.string().optional(),
+  category: z.enum(["ELECTRONICS", "FURNITURE", "VEHICLES", "GYM_AND_SPORTS_EQUIPMENTS", "CONSTRUCTION_TOOLS"]).optional(),
   couponCode: z.string().optional(),
   role: z.enum(["ADMIN", "VENDOR", "CUSTOMER"]).default("CUSTOMER"),
 }).refine((data) => {
-  // For VENDOR: companyName and gstin are REQUIRED
+  // For VENDOR: companyName and category are REQUIRED
   if (data.role === "VENDOR") {
-    return data.companyName && data.companyName.length > 0;
+    return data.companyName && data.companyName.length > 0 && data.category;
   }
-  // For CUSTOMER: companyName and gstin should NOT be provided
+  // For CUSTOMER: companyName, gstin, and category should NOT be provided
   if (data.role === "CUSTOMER") {
-    return !data.companyName && !data.gstin;
+    return !data.companyName && !data.gstin && !data.category;
   }
   return true;
 }, {
-  message: "Invalid fields for role: Vendors require companyName, Customers should not provide companyName or gstin",
+  message: "Invalid fields for role: Vendors require companyName and category, Customers should not provide vendor fields",
   path: ["role"],
 });
 

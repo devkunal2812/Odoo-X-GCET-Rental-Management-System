@@ -7,9 +7,9 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-secondary-50">
       <Header currentPage="about" />
-
+    
       {/* Hero Section */}
-      <section className="py-20 bg-secondary-800">
+      <section className="py-20 bg-blue-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
             About RentMarket
@@ -140,24 +140,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Team Section */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-12 text-secondary-900">Our Team</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "Sarah Johnson", role: "CEO & Founder", bio: "Former tech executive with 15 years in marketplace platforms" },
-              { name: "Michael Chen", role: "CTO", bio: "Full-stack engineer passionate about sustainable technology solutions" },
-              { name: "Emily Rodriguez", role: "Head of Operations", bio: "Operations expert focused on vendor success and customer satisfaction" }
-            ].map((member, index) => (
-              <div key={index} className="text-center">
-                <div className="w-32 h-32 rounded-full mx-auto mb-4 bg-secondary-400"></div>
-                <h3 className="text-lg font-semibold mb-1 text-secondary-900">{member.name}</h3>
-                <p className="font-medium mb-2 text-primary-700">{member.role}</p>
-                <p className="text-sm text-secondary-600">{member.bio}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+       
 
         {/* CTA Section */}
         <section className="text-center py-16 rounded-2xl bg-secondary-400">

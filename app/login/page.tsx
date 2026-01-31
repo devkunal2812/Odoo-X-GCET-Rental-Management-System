@@ -19,6 +19,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { login, loading, error, clearError, isAuthenticated } = useAuth();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
 
   // Check for success message from URL
   useEffect(() => {
@@ -38,6 +39,37 @@ export default function LoginPage() {
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (error) clearError();
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.email) {
+      alert('Please enter your email address first.');
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSuccessMessage(result.message);
+        clearError();
+      } else {
+        alert(result.error || 'Failed to resend verification email.');
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -194,6 +226,21 @@ export default function LoginPage() {
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-700 text-sm">{error}</p>
+                {error.includes('verify your email') && (
+                  <div className="mt-3 pt-3 border-t border-red-200">
+                    <p className="text-red-600 text-xs mb-2">
+                      Haven't received the verification email?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={resendLoading}
+                      className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded transition-colors disabled:opacity-50"
+                    >
+                      {resendLoading ? 'Sending...' : 'Resend Verification Email'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

@@ -25,6 +25,13 @@ export interface User {
   customerProfile?: CustomerProfile;
 }
 
+export type ProductCategory = 
+  | 'ELECTRONICS'
+  | 'FURNITURE' 
+  | 'VEHICLES'
+  | 'GYM_AND_SPORTS_EQUIPMENTS'
+  | 'CONSTRUCTION_TOOLS';
+
 export interface VendorProfile {
   id: string;
   userId: string;
@@ -32,6 +39,7 @@ export interface VendorProfile {
   gstin?: string;
   logoUrl?: string;
   address?: string;
+  category?: ProductCategory;
 }
 
 export interface CustomerProfile {
@@ -50,6 +58,7 @@ export interface SignupRequest {
   role: 'CUSTOMER' | 'VENDOR';
   companyName?: string;
   gstin?: string;
+  category?: ProductCategory; // New field for vendor category
   couponCode?: string;
 }
 

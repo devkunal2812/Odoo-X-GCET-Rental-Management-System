@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { hashPassword, generateToken, generateSecureToken, getTokenExpiry } from "@/app/lib/auth";
 import { signupSchema } from "@/app/lib/validation";
+import { sendVerificationEmail } from "@/app/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
                 create: {
                   companyName: data.companyName!,
                   gstin: data.gstin,
+                  category: data.category,
                 },
               },
             }
@@ -100,6 +102,18 @@ export async function POST(request: NextRequest) {
       email: user.email,
       role: user.role,
     });
+    // Send verification email
+    try {
+      await sendVerificationEmail(
+        user.email,
+        `${user.firstName} ${user.lastName}`,
+        emailVerificationToken
+      );
+      console.log(`✅ Verification email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('📧 Failed to send verification email:', emailError);
+      // Don't fail the signup if email fails - user can request resend
+    }
 
     // Create audit log
     await prisma.auditLog.create({
@@ -108,12 +122,16 @@ export async function POST(request: NextRequest) {
         action: "SIGNUP",
         entity: "User",
         entityId: user.id,
+        metadata: JSON.stringify({
+          role: user.role,
+          emailSent: true,
+        }),
       },
     });
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      message: "Signup successful. Please verify your email to login.",
+      message: "Account created successfully! Please check your email for verification instructions.",
       user: {
         id: user.id,
         firstName: user.firstName,
@@ -122,18 +140,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         emailVerified: user.emailVerified,
       },
-      verificationToken: emailVerificationToken, // Remove in production
     });
-
-    // Don't set auth cookie until email is verified
-    // response.cookies.set("auth_token", token, {
-    //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === "production",
-    //   sameSite: "lax",
-    //   maxAge: 60 * 60 * 24 * 7, // 7 days
-    // });
-
-    return response;
   } catch (error: any) {
     console.error("Signup error:", error);
     return NextResponse.json(

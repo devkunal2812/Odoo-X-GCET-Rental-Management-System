@@ -12,7 +12,8 @@ import {
   DocumentTextIcon,
   TagIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  RectangleStackIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/contexts/AuthContext";
 import type { SignupRequest } from "@/types/api";
@@ -29,6 +30,7 @@ export default function SignupPage() {
     email: "",
     companyName: "",
     gstin: "",
+    category: "",
     password: "",
     confirmPassword: "",
     couponCode: "",
@@ -79,9 +81,14 @@ export default function SignupPage() {
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Company name validation
-    if (!formData.companyName.trim()) {
-      newErrors.companyName = "Company name is required";
+    // Company name validation (only for vendors)
+    if (userType === "vendor" && !formData.companyName.trim()) {
+      newErrors.companyName = "Company name is required for vendors";
+    }
+
+    // Category validation (only for vendors)
+    if (userType === "vendor" && !formData.category) {
+      newErrors.category = "Product category is required for vendors";
     }
 
     // GSTIN validation for vendors
@@ -143,20 +150,24 @@ export default function SignupPage() {
         email: formData.email,
         password: formData.password,
         role: userType.toUpperCase() as 'CUSTOMER' | 'VENDOR',
-        companyName: userType === 'vendor' ? formData.companyName : undefined,
-        gstin: userType === 'vendor' && formData.gstin ? formData.gstin : undefined,
+        // Only include company fields for vendors
+        ...(userType === 'vendor' ? {
+          companyName: formData.companyName,
+          gstin: formData.gstin || undefined,
+          category: formData.category as any,
+        } : {}),
         couponCode: formData.couponCode || undefined,
       };
       
       await signup(signupData);
       
       // Show success message
-      setSuccessMessage(`${userType === "customer" ? "Customer" : "Vendor"} account created successfully! Please check your email for verification.`);
+      setSuccessMessage(`Account created successfully! We've sent a verification email to ${formData.email}. Please check your inbox and click the verification link to activate your account.`);
       
-      // Redirect after 3 seconds
+      // Redirect after 5 seconds
       setTimeout(() => {
-        router.push("/login?message=Please check your email to verify your account");
-      }, 3000);
+        router.push(`/login?message=Please check your email (${formData.email}) to verify your account before logging in`);
+      }, 5000);
       
     } catch (error) {
       setErrors({ submit: authError || "Registration failed. Please try again." });
@@ -390,28 +401,63 @@ export default function SignupPage() {
                 )}
               </div>
 
-              {/* Company Name Field */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-secondary-900">
-                  Company Name *
-                </label>
-                <div className="relative">
-                  <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary-400" />
-                  <input
-                    type="text"
-                    required
-                    value={formData.companyName}
-                    onChange={(e) => handleInputChange("companyName", e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white ${
-                      errors.companyName ? "border-error-500" : "border-secondary-300"
-                    }`}
-                    placeholder="Enter your company name"
-                  />
+              {/* Company Name Field (Vendors Only) */}
+              {userType === "vendor" && (
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-secondary-900">
+                    Company Name *
+                  </label>
+                  <div className="relative">
+                    <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary-400" />
+                    <input
+                      type="text"
+                      required
+                      value={formData.companyName}
+                      onChange={(e) => handleInputChange("companyName", e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white ${
+                        errors.companyName ? "border-error-500" : "border-secondary-300"
+                      }`}
+                      placeholder="Enter your company name"
+                    />
+                  </div>
+                  {errors.companyName && (
+                    <p className="mt-1 text-sm text-error-600">{errors.companyName}</p>
+                  )}
                 </div>
-                {errors.companyName && (
-                  <p className="mt-1 text-sm text-error-600">{errors.companyName}</p>
-                )}
-              </div>
+              )}
+
+              {/* Product Category Field (Vendors Only) */}
+              {userType === "vendor" && (
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-secondary-900">
+                    Product Category *
+                  </label>
+                  <div className="relative">
+                    <RectangleStackIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary-400" />
+                    <select
+                      required
+                      value={formData.category}
+                      onChange={(e) => handleInputChange("category", e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white ${
+                        errors.category ? "border-error-500" : "border-secondary-300"
+                      }`}
+                    >
+                      <option value="">Select your primary product category</option>
+                      <option value="ELECTRONICS">📱 Electronics</option>
+                      <option value="FURNITURE">🪑 Furniture</option>
+                      <option value="VEHICLES">🚗 Vehicles</option>
+                      <option value="GYM_AND_SPORTS_EQUIPMENTS">🏋️ Gym & Sports Equipments</option>
+                      <option value="CONSTRUCTION_TOOLS">🔨 Construction Tools</option>
+                    </select>
+                  </div>
+                  {errors.category && (
+                    <p className="mt-1 text-sm text-error-600">{errors.category}</p>
+                  )}
+                  <p className="mt-1 text-xs text-secondary-500">
+                    Choose the main category of products you'll be renting out
+                  </p>
+                </div>
+              )}
 
               {/* GSTIN Field (Vendors Only) */}
               {userType === "vendor" && (
