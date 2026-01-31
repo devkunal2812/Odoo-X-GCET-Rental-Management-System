@@ -149,7 +149,7 @@ const CustomerDetailModal = ({ customer, isOpen, onClose }: {
               <p className="text-sm text-[#715A5A]">Total Orders</p>
             </div>
             <div className="bg-[#D3DAD9] rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-[#37353E] mb-2">$</div>
+              <div className="text-2xl font-bold text-[#37353E] mb-2">₹</div>
               <p className="text-2xl font-bold text-[#37353E]">{customer.totalSpent.toLocaleString()}</p>
               <p className="text-sm text-[#715A5A]">Total Spent</p>
             </div>
@@ -321,7 +321,7 @@ export default function AdminCustomersPage() {
                     {customer.totalOrders}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[#37353E]">
-                    ${customer.totalSpent.toLocaleString()}
+                    ₹{customer.totalSpent.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${

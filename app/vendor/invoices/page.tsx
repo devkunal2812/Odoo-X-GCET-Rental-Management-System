@@ -13,6 +13,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
+import { generateInvoicePDF, generateSampleInvoiceData } from "../../../lib/invoiceGenerator";
 
 // Mock data
 const mockInvoices = [
@@ -140,9 +141,62 @@ export default function VendorInvoices() {
   });
 
   const handleDownloadInvoice = (invoiceId: string) => {
-    // In a real app, this would generate and download the PDF
-    console.log(`Downloading invoice ${invoiceId}`);
-    alert(`Downloading invoice ${invoiceId}...`);
+    try {
+      // Generate sample invoice data (in real app, this would come from API)
+      const invoiceData = generateSampleInvoiceData(invoiceId);
+      
+      // Find the actual invoice from mockInvoices to get real data
+      const actualInvoice = mockInvoices.find(invoice => invoice.id === invoiceId);
+      if (actualInvoice) {
+        // Update the sample data with actual invoice data
+        invoiceData.id = actualInvoice.id;
+        invoiceData.orderId = actualInvoice.orderId;
+        invoiceData.product = actualInvoice.product;
+        invoiceData.vendor = 'Your Vendor Company'; // In real app, get from vendor context
+        invoiceData.amount = actualInvoice.amount;
+        invoiceData.tax = actualInvoice.tax;
+        invoiceData.total = actualInvoice.total;
+        invoiceData.status = actualInvoice.status;
+        invoiceData.issueDate = actualInvoice.issueDate;
+        invoiceData.dueDate = actualInvoice.dueDate;
+        invoiceData.paidDate = actualInvoice.paidDate;
+        invoiceData.rentalPeriod = actualInvoice.rentalPeriod;
+        
+        // Update customer info
+        invoiceData.customerInfo.name = actualInvoice.customer.name;
+        invoiceData.customerInfo.email = actualInvoice.customer.email;
+        invoiceData.customerInfo.phone = '+91 98765 43210';
+        invoiceData.customerInfo.address = actualInvoice.customer.address;
+      }
+      
+      // Generate and download PDF
+      generateInvoicePDF(invoiceData);
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      successMessage.textContent = `Invoice ${invoiceId} downloaded successfully!`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = 'Error generating PDF. Please try again.';
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage);
+      }, 3000);
+    }
   };
 
   const handleSendInvoice = (invoiceId: string) => {
@@ -184,7 +238,7 @@ export default function VendorInvoices() {
             <div>
               <p className="text-sm font-medium text-secondary-600">Total Revenue</p>
               <p className="text-2xl font-bold text-secondary-900">
-                ${totalRevenue.toFixed(2)}
+                ₹{totalRevenue.toFixed(2)}
               </p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center">
@@ -339,10 +393,10 @@ export default function VendorInvoices() {
                   <div className="flex flex-col items-end space-y-3">
                     <div className="text-right">
                       <div className="text-2xl font-bold text-primary-600">
-                        ${invoice.total}
+                        ₹{invoice.total}
                       </div>
                       <div className="text-sm text-secondary-600">
-                        Amount: ${invoice.amount} + Tax: ${invoice.tax}
+                        Amount: ₹{invoice.amount} + Tax: ₹{invoice.tax}
                       </div>
                       {invoice.paidDate && (
                         <div className="text-sm text-green-600">

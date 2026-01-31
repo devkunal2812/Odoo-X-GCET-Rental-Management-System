@@ -15,6 +15,7 @@ import {
   CalendarIcon,
   ArrowLeftIcon
 } from "@heroicons/react/24/outline";
+import { generateInvoicePDF, generateSampleInvoiceData } from "../../lib/invoiceGenerator";
 
 // Utility function for consistent date formatting
 const formatDate = (dateString: string) => {
@@ -154,9 +155,58 @@ export default function InvoicesPage() {
   });
 
   const handleDownloadInvoice = (invoiceId: string) => {
-    // In a real app, this would generate and download the PDF
-    console.log(`Downloading invoice ${invoiceId}`);
-    alert(`Downloading invoice ${invoiceId}...`);
+    try {
+      // Generate sample invoice data (in real app, this would come from API)
+      const invoiceData = generateSampleInvoiceData(invoiceId);
+      
+      // Find the actual invoice from mockInvoices to get real data
+      const actualInvoice = mockInvoices.find(inv => inv.id === invoiceId);
+      if (actualInvoice) {
+        // Update the sample data with actual invoice data
+        invoiceData.id = actualInvoice.id;
+        invoiceData.orderId = actualInvoice.orderId;
+        invoiceData.product = actualInvoice.product;
+        invoiceData.vendor = actualInvoice.vendor;
+        invoiceData.amount = actualInvoice.amount;
+        invoiceData.tax = actualInvoice.tax;
+        invoiceData.serviceFee = actualInvoice.serviceFee;
+        invoiceData.total = actualInvoice.total;
+        invoiceData.status = actualInvoice.status;
+        invoiceData.issueDate = actualInvoice.issueDate;
+        invoiceData.dueDate = actualInvoice.dueDate;
+        invoiceData.paidDate = actualInvoice.paidDate;
+        invoiceData.paymentMethod = actualInvoice.paymentMethod || '';
+        invoiceData.rentalPeriod = actualInvoice.rentalPeriod;
+      }
+      
+      // Generate and download PDF
+      generateInvoicePDF(invoiceData);
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      successMessage.textContent = `Invoice ${invoiceId} downloaded successfully!`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = 'Error generating PDF. Please try again.';
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage);
+      }, 3000);
+    }
   };
 
   const handlePayInvoice = (invoiceId: string) => {
@@ -174,30 +224,30 @@ export default function InvoicesPage() {
     .reduce((sum, inv) => sum + inv.total, 0);
 
   return (
-    <div className="min-h-screen bg-secondary-50">
+    <div className="min-h-screen bg-[#D3DAD9]">
       <Header currentPage="invoices" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div className="flex items-center space-x-4">
             <Link
               href="/orders"
-              className="p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all text-primary-600"
+              className="p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all text-[#37353E]"
             >
               <ArrowLeftIcon className="h-6 w-6" />
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-secondary-900">
+              <h1 className="text-3xl font-bold text-[#37353E]">
                 My Invoices
               </h1>
-              <p className="mt-2 text-secondary-600">
+              <p className="mt-2 text-[#715A5A]">
                 View and manage your rental invoices
               </p>
             </div>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-            <span className="text-sm font-medium text-secondary-600">
+            <span className="text-sm font-medium text-[#715A5A]">
               {filteredInvoices.length} invoices
             </span>
           </div>
@@ -205,24 +255,24 @@ export default function InvoicesPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-[#44444E]/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-secondary-600">Total Invoices</p>
-                <p className="text-2xl font-bold text-secondary-900">
+                <p className="text-sm font-medium text-[#715A5A]">Total Invoices</p>
+                <p className="text-2xl font-bold text-[#37353E]">
                   {filteredInvoices.length}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center">
-                <DocumentTextIcon className="h-6 w-6 text-primary-600" />
+              <div className="w-12 h-12 rounded-lg bg-[#D3DAD9] flex items-center justify-center">
+                <DocumentTextIcon className="h-6 w-6 text-[#37353E]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-[#44444E]/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-secondary-600">Paid Invoices</p>
+                <p className="text-sm font-medium text-[#715A5A]">Paid Invoices</p>
                 <p className="text-2xl font-bold text-green-600">
                   {filteredInvoices.filter(inv => inv.status === "paid").length}
                 </p>
@@ -233,26 +283,26 @@ export default function InvoicesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-[#44444E]/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-secondary-600">Total Paid</p>
-                <p className="text-2xl font-bold text-secondary-900">
-                  ${totalPaid.toFixed(2)}
+                <p className="text-sm font-medium text-[#715A5A]">Total Paid</p>
+                <p className="text-2xl font-bold text-[#37353E]">
+                  ₹{totalPaid.toFixed(2)}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <CalendarIcon className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 rounded-lg bg-[#D3DAD9] flex items-center justify-center">
+                <CalendarIcon className="h-6 w-6 text-[#37353E]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-[#44444E]/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-secondary-600">Pending Amount</p>
+                <p className="text-sm font-medium text-[#715A5A]">Pending Amount</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  ${pendingAmount.toFixed(2)}
+                  ₹{pendingAmount.toFixed(2)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center">
@@ -263,24 +313,24 @@ export default function InvoicesPage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-[#44444E]/20">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-secondary-500" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#715A5A]" />
               <input
                 type="text"
                 placeholder="Search invoices, products, vendors..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-900"
+                className="w-full pl-10 pr-4 py-3 border-2 border-[#D3DAD9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44444E] focus:border-transparent text-[#37353E]"
               />
             </div>
 
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="lg:hidden flex items-center px-4 py-3 rounded-lg border-2 border-primary-600 text-primary-600 transition-colors"
+              className="lg:hidden flex items-center px-4 py-3 rounded-lg border-2 border-[#37353E] text-[#37353E] transition-colors hover:bg-[#37353E] hover:text-white"
             >
               <FunnelIcon className="h-5 w-5 mr-2" />
               Filters
@@ -291,7 +341,7 @@ export default function InvoicesPage() {
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
+                className="px-4 py-3 border-2 border-[#D3DAD9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44444E] text-[#37353E]"
               >
                 {statusOptions.map(status => (
                   <option key={status} value={status}>{status}</option>
@@ -302,11 +352,11 @@ export default function InvoicesPage() {
 
           {/* Mobile Filters */}
           {showFilters && (
-            <div className="lg:hidden mt-4 pt-4 border-t border-secondary-200">
+            <div className="lg:hidden mt-4 pt-4 border-t border-[#D3DAD9]">
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
+                className="w-full px-4 py-3 border-2 border-[#D3DAD9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44444E] text-[#37353E]"
               >
                 {statusOptions.map(status => (
                   <option key={status} value={status}>{status}</option>
@@ -323,13 +373,13 @@ export default function InvoicesPage() {
             const StatusIcon = statusColor.icon;
             
             return (
-              <div key={invoice.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+              <div key={invoice.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow border border-[#44444E]/20">
                 <div className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                     {/* Invoice Info */}
                     <div className="flex-1 mb-4 lg:mb-0">
                       <div className="flex items-center mb-3">
-                        <h3 className="font-bold text-xl mr-4 text-secondary-900">
+                        <h3 className="font-bold text-xl mr-4 text-[#37353E]">
                           {invoice.id}
                         </h3>
                         <span
@@ -343,24 +393,24 @@ export default function InvoicesPage() {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <h4 className="font-semibold mb-1 text-secondary-900">
+                          <h4 className="font-semibold mb-1 text-[#37353E]">
                             {invoice.product}
                           </h4>
-                          <p className="text-sm mb-1 text-secondary-600">
+                          <p className="text-sm mb-1 text-[#715A5A]">
                             <strong>Vendor:</strong> {invoice.vendor}
                           </p>
-                          <p className="text-sm mb-1 text-secondary-600">
+                          <p className="text-sm mb-1 text-[#715A5A]">
                             <strong>Order:</strong> {invoice.orderId}
                           </p>
-                          <p className="text-sm text-secondary-600">
+                          <p className="text-sm text-[#715A5A]">
                             <strong>Rental Period:</strong> {invoice.rentalPeriod}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm mb-1 text-secondary-600">
+                          <p className="text-sm mb-1 text-[#715A5A]">
                             <strong>Issue Date:</strong> {formatDate(invoice.issueDate)}
                           </p>
-                          <p className="text-sm mb-1 text-secondary-600">
+                          <p className="text-sm mb-1 text-[#715A5A]">
                             <strong>Due Date:</strong> {formatDate(invoice.dueDate)}
                           </p>
                           {invoice.paidDate && (
@@ -369,7 +419,7 @@ export default function InvoicesPage() {
                             </p>
                           )}
                           {invoice.paymentMethod && (
-                            <p className="text-sm text-secondary-600">
+                            <p className="text-sm text-[#715A5A]">
                               <strong>Payment:</strong> {invoice.paymentMethod}
                             </p>
                           )}
@@ -380,18 +430,18 @@ export default function InvoicesPage() {
                     {/* Amount and Actions */}
                     <div className="flex flex-col items-end space-y-3">
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-secondary-900">
-                          ${invoice.total.toFixed(2)}
+                        <div className="text-2xl font-bold text-[#37353E]">
+                          ₹{invoice.total.toFixed(2)}
                         </div>
-                        <div className="text-sm text-secondary-600">
-                          Amount: ${invoice.amount} + Tax: ${invoice.tax} + Fee: ${invoice.serviceFee}
+                        <div className="text-sm text-[#715A5A]">
+                          Amount: ₹{invoice.amount} + Tax: ₹{invoice.tax} + Fee: ₹{invoice.serviceFee}
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-2">
                         <Link
                           href={`/invoices/${invoice.id}`}
-                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-secondary-600"
+                          className="p-2 rounded-lg hover:bg-[#D3DAD9] transition-colors text-[#715A5A]"
                           title="View Invoice"
                         >
                           <EyeIcon className="h-5 w-5" />
@@ -399,7 +449,7 @@ export default function InvoicesPage() {
                         
                         <button
                           onClick={() => handleDownloadInvoice(invoice.id)}
-                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-secondary-600"
+                          className="p-2 rounded-lg hover:bg-[#D3DAD9] transition-colors text-[#715A5A] hover:text-[#37353E]"
                           title="Download PDF"
                         >
                           <ArrowDownTrayIcon className="h-5 w-5" />
@@ -431,13 +481,13 @@ export default function InvoicesPage() {
         {/* Empty State */}
         {filteredInvoices.length === 0 && (
           <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center bg-secondary-200">
-              <DocumentTextIcon className="h-12 w-12 text-secondary-600" />
+            <div className="w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center bg-[#D3DAD9]">
+              <DocumentTextIcon className="h-12 w-12 text-[#715A5A]" />
             </div>
-            <h3 className="text-xl font-semibold mb-2 text-secondary-900">
+            <h3 className="text-xl font-semibold mb-2 text-[#37353E]">
               No invoices found
             </h3>
-            <p className="mb-6 text-secondary-600">
+            <p className="mb-6 text-[#715A5A]">
               Try adjusting your search or filters
             </p>
             <button
@@ -445,7 +495,7 @@ export default function InvoicesPage() {
                 setSearchTerm("");
                 setSelectedStatus("All");
               }}
-              className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-secondary-600 text-white"
+              className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-[#37353E] text-white"
             >
               Clear Filters
             </button>

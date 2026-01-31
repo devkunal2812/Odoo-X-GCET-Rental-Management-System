@@ -12,14 +12,20 @@ import {
   CogIcon,
   Bars3Icon,
   XMarkIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  CubeIcon,
+  DocumentCheckIcon,
+  WrenchScrewdriverIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 
 const sidebarItems = [
   { name: 'Dashboard', href: '/admin', icon: HomeIcon },
-  { name: 'Vendors', href: '/admin/vendors', icon: BuildingStorefrontIcon },
+  { name: 'Rental Orders', href: '/admin/rental-orders', icon: DocumentTextIcon },
+  { name: 'Asset Management', href: '/admin/assets', icon: CubeIcon },
+  { name: 'Rental Partners', href: '/admin/partners', icon: BuildingStorefrontIcon },
   { name: 'Customers', href: '/admin/customers', icon: UsersIcon },
-  { name: 'Invoices', href: '/admin/invoices', icon: DocumentTextIcon },
+  { name: 'Billing & Invoices', href: '/admin/billing', icon: CurrencyDollarIcon },
   { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
   { name: 'Settings', href: '/admin/settings', icon: CogIcon },
 ];
@@ -94,7 +100,7 @@ export default function AdminLayout({
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#37353E] to-[#44444E] flex items-center justify-center">
                 <span className="text-white font-bold text-lg">R</span>
               </div>
-              <span className="text-xl font-bold text-[#37353E]">Admin Panel</span>
+              <span className="text-xl font-bold text-[#37353E]">Rental ERP</span>
             </div>
           </div>
           <nav className="mt-6 flex-1 px-3">

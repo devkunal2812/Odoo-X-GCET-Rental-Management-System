@@ -8,8 +8,10 @@ import {
   CurrencyDollarIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
+import { generateInvoicePDF, generateSampleInvoiceData } from "../../lib/invoiceGenerator";
 
 // Mock data
 const stats = [
@@ -36,7 +38,7 @@ const stats = [
   },
   {
     name: "Revenue",
-    value: "$12,450",
+    value: "₹12,450",
     change: "-3%",
     changeType: "decrease" as const,
     icon: CurrencyDollarIcon
@@ -95,6 +97,58 @@ const getStatusColor = (status: string) => {
 };
 
 export default function DashboardPage() {
+  const handleDownloadInvoice = (orderId: string) => {
+    try {
+      // Generate sample invoice data (in real app, this would come from API)
+      const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
+      
+      // Find the actual order from recentOrders to get real data
+      const actualOrder = recentOrders.find(order => order.id === orderId);
+      if (actualOrder) {
+        // Update the sample data with actual order data
+        invoiceData.id = `INV-${orderId}`;
+        invoiceData.orderId = actualOrder.id;
+        invoiceData.product = actualOrder.product;
+        invoiceData.amount = parseInt(actualOrder.amount.replace('₹', ''));
+        invoiceData.total = invoiceData.amount + (invoiceData.amount * 0.18) + 25; // Add tax and service fee
+        invoiceData.status = actualOrder.status === 'invoiced' ? 'paid' : 'pending';
+        
+        // Update customer info
+        invoiceData.customerInfo.name = actualOrder.customer;
+        invoiceData.customerInfo.email = 'customer@email.com';
+        invoiceData.customerInfo.phone = '+91 98765 43210';
+        invoiceData.customerInfo.address = '123, Customer Address, City, State - 560001';
+      }
+      
+      // Generate and download PDF
+      generateInvoicePDF(invoiceData);
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      successMessage.textContent = `Invoice for ${orderId} downloaded successfully!`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = 'Error generating PDF. Please try again.';
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage);
+      }, 3000);
+    }
+  };
   return (
     <div>
       <div className="mb-8">

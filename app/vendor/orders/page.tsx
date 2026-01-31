@@ -9,8 +9,10 @@ import {
   ClockIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
+import { generateInvoicePDF, generateSampleInvoiceData } from "../../../lib/invoiceGenerator";
 
 // Mock data
 const mockOrders = [
@@ -159,6 +161,61 @@ export default function VendorOrders() {
     console.log(`Updating order ${orderId} to ${newStatus}`);
   };
 
+  const handleDownloadInvoice = (orderId: string) => {
+    try {
+      // Generate sample invoice data (in real app, this would come from API)
+      const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
+      
+      // Find the actual order from mockOrders to get real data
+      const actualOrder = mockOrders.find(order => order.id === orderId);
+      if (actualOrder) {
+        // Update the sample data with actual order data
+        invoiceData.id = `INV-${orderId}`;
+        invoiceData.orderId = actualOrder.id;
+        invoiceData.product = actualOrder.product.name;
+        invoiceData.vendor = 'Your Vendor Company'; // In real app, get from vendor context
+        invoiceData.amount = actualOrder.amount;
+        invoiceData.total = actualOrder.amount + (actualOrder.amount * 0.18) + 25; // Add tax and service fee
+        invoiceData.status = actualOrder.status === 'completed' ? 'paid' : 'pending';
+        invoiceData.rentalPeriod = `${actualOrder.startDate} to ${actualOrder.endDate} (${actualOrder.duration} ${actualOrder.unit})`;
+        
+        // Update customer info
+        invoiceData.customerInfo.name = actualOrder.customer.name;
+        invoiceData.customerInfo.email = actualOrder.customer.email;
+        invoiceData.customerInfo.phone = actualOrder.customer.phone;
+        invoiceData.customerInfo.address = '123, Customer Address, City, State - 560001';
+      }
+      
+      // Generate and download PDF
+      generateInvoicePDF(invoiceData);
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      successMessage.textContent = `Invoice for ${orderId} downloaded successfully!`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = 'Error generating PDF. Please try again.';
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage);
+      }, 3000);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -279,7 +336,7 @@ export default function VendorOrders() {
                   <div className="flex flex-col items-end space-y-3">
                     <div className="text-right">
                       <div className="text-2xl font-bold text-primary-600">
-                        ${order.amount}
+                        ₹{order.amount}
                       </div>
                       <div className="text-sm text-secondary-600">
                         Order Total
@@ -294,6 +351,16 @@ export default function VendorOrders() {
                       >
                         <EyeIcon className="h-5 w-5" />
                       </Link>
+                      
+                      {(order.status === 'completed' || order.status === 'confirmed') && (
+                        <button
+                          onClick={() => handleDownloadInvoice(order.id)}
+                          className="p-2 rounded-lg hover:bg-secondary-100 transition-colors text-primary-600"
+                          title="Download Invoice"
+                        >
+                          <ArrowDownTrayIcon className="h-5 w-5" />
+                        </button>
+                      )}
                       
                       <Link
                         href={`/vendor/invoices/${order.id}`}

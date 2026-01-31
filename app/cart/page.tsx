@@ -190,10 +190,10 @@ export default function CartPage() {
                         {/* Price and Remove Button */}
                         <div className="text-right flex flex-col items-end">
                           <div className="text-2xl font-bold mb-1 text-gray-900">
-                            ${item.unitPrice * item.quantity * item.rentalDuration}
+                            ₹{item.unitPrice * item.quantity * item.rentalDuration}
                           </div>
                           <div className="text-sm mb-4 text-gray-600">
-                            ${item.unitPrice} × {item.quantity} × {item.rentalDuration} {item.rentalUnit}(s)
+                            ₹{item.unitPrice} × {item.quantity} × {item.rentalDuration} {item.rentalUnit}(s)
                           </div>
                           <button
                             onClick={() => removeItem(item.id)}
@@ -271,18 +271,18 @@ export default function CartPage() {
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between items-center py-2">
                       <span className="font-medium text-gray-900">Subtotal</span>
-                      <span className="font-bold text-lg text-gray-900">${subtotal.toFixed(2)}</span>
+                      <span className="font-bold text-lg text-gray-900">₹{subtotal.toFixed(2)}</span>
                     </div>
                     {appliedCoupon && (
                       <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-green-100 text-green-700">
                         <span className="font-medium">💰 Discount ({(appliedCoupon.discount * 100).toFixed(0)}%)</span>
-                        <span className="font-bold">-${discountAmount.toFixed(2)}</span>
+                        <span className="font-bold">-₹{discountAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="border-t-2 pt-4 border-gray-100">
                       <div className="flex justify-between items-center">
                         <span className="text-xl font-bold text-gray-900">Total</span>
-                        <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-blue-600">₹{total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

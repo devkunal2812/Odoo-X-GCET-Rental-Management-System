@@ -31,7 +31,7 @@ const VendorDetailModal = ({ vendor, isOpen, onClose }: {
         className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-[#37353E]">Vendor Details</h3>
+          <h3 className="text-xl font-semibold text-[#37353E]">Partner Details</h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-[#D3DAD9] rounded-lg transition-colors"
@@ -66,12 +66,12 @@ const VendorDetailModal = ({ vendor, isOpen, onClose }: {
             <div className="bg-[#D3DAD9] rounded-lg p-4 text-center">
               <CubeIcon className="h-8 w-8 text-[#37353E] mx-auto mb-2" />
               <p className="text-2xl font-bold text-[#37353E]">{vendor.totalProducts}</p>
-              <p className="text-sm text-[#715A5A]">Products</p>
+              <p className="text-sm text-[#715A5A]">Assets</p>
             </div>
             <div className="bg-[#D3DAD9] rounded-lg p-4 text-center">
               <ClipboardDocumentListIcon className="h-8 w-8 text-[#37353E] mx-auto mb-2" />
               <p className="text-2xl font-bold text-[#37353E]">{vendor.totalOrders}</p>
-              <p className="text-sm text-[#715A5A]">Orders</p>
+              <p className="text-sm text-[#715A5A]">Rentals</p>
             </div>
             <div className="bg-[#D3DAD9] rounded-lg p-4 text-center">
               <CurrencyDollarIcon className="h-8 w-8 text-[#37353E] mx-auto mb-2" />
@@ -118,7 +118,7 @@ const VendorDetailModal = ({ vendor, isOpen, onClose }: {
   );
 };
 
-export default function AdminVendorsPage() {
+export default function AdminPartnersPage() {
   const [vendors] = useState<Vendor[]>(mockVendors);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -149,8 +149,8 @@ export default function AdminVendorsPage() {
     <div className="p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#37353E] mb-2">Vendor Management</h1>
-        <p className="text-[#715A5A]">Manage and monitor vendor accounts</p>
+        <h1 className="text-3xl font-bold text-[#37353E] mb-2">Rental Partners</h1>
+        <p className="text-[#715A5A]">Manage and monitor rental partner accounts</p>
       </div>
 
       {/* Stats Cards */}
@@ -159,7 +159,7 @@ export default function AdminVendorsPage() {
           <div key={status} className="bg-white rounded-xl p-6 shadow-sm border border-[#D3DAD9]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-[#715A5A]">{status} Vendors</p>
+                <p className="text-sm font-medium text-[#715A5A]">{status} Partners</p>
                 <p className="text-2xl font-bold text-[#37353E]">{count}</p>
               </div>
               <BuildingStorefrontIcon className="h-8 w-8 text-[#44444E]" />
@@ -175,7 +175,7 @@ export default function AdminVendorsPage() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#715A5A]" />
             <input
               type="text"
-              placeholder="Search vendors..."
+              placeholder="Search partners..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-[#D3DAD9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#44444E] focus:border-transparent"
@@ -195,20 +195,20 @@ export default function AdminVendorsPage() {
         </div>
       </div>
 
-      {/* Vendors Table */}
+      {/* Partners Table */}
       <div className="bg-white rounded-xl shadow-sm border border-[#D3DAD9] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[#D3DAD9]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#37353E] uppercase tracking-wider">
-                  Vendor
+                  Partner
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#37353E] uppercase tracking-wider">
                   Contact
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#37353E] uppercase tracking-wider">
-                  Products
+                  Assets
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#37353E] uppercase tracking-wider">
                   Revenue
@@ -285,7 +285,7 @@ export default function AdminVendorsPage() {
         </div>
       </div>
 
-      {/* Vendor Detail Modal */}
+      {/* Partner Detail Modal */}
       <AnimatePresence>
         <VendorDetailModal
           vendor={selectedVendor}

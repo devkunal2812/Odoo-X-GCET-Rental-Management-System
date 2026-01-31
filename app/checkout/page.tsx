@@ -175,7 +175,7 @@ export default function CheckoutPage() {
                                 <p className="text-sm text-secondary-600">{method.estimatedTime}</p>
                               </div>
                               <span className="font-semibold text-secondary-900">
-                                {method.price === 0 ? "Free" : `$${method.price}`}
+                                {method.price === 0 ? "Free" : `₹${method.price}`}
                               </span>
                             </div>
                           </div>

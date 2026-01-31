@@ -14,8 +14,10 @@ import {
   MapPinIcon,
   PhoneIcon,
   DocumentTextIcon,
-  ShoppingBagIcon
+  ShoppingBagIcon,
+  ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
+import { generateInvoicePDF, generateSampleInvoiceData } from "../../lib/invoiceGenerator";
 
 // Utility function for consistent date formatting
 const formatDate = (dateString: string) => {
@@ -208,6 +210,61 @@ export default function OrdersPage() {
     alert(`Calling ${vendorPhone}...`);
   };
 
+  const handleDownloadInvoice = (orderId: string) => {
+    try {
+      // Generate sample invoice data (in real app, this would come from API)
+      const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
+      
+      // Find the actual order from mockOrders to get real data
+      const actualOrder = mockOrders.find(order => order.id === orderId);
+      if (actualOrder) {
+        // Update the sample data with actual order data
+        invoiceData.id = `INV-${orderId}`;
+        invoiceData.orderId = actualOrder.id;
+        invoiceData.product = actualOrder.product.name;
+        invoiceData.vendor = actualOrder.vendor.name;
+        invoiceData.amount = actualOrder.amount;
+        invoiceData.total = actualOrder.amount + (actualOrder.amount * 0.18) + 25; // Add tax and service fee
+        invoiceData.status = actualOrder.paymentStatus === 'paid' ? 'paid' : 'pending';
+        invoiceData.rentalPeriod = `${formatDate(actualOrder.startDate)} to ${formatDate(actualOrder.endDate)} (${actualOrder.duration} ${actualOrder.unit})`;
+        
+        // Update customer info with mock data
+        invoiceData.customerInfo.name = 'John Doe'; // In real app, get from user context
+        invoiceData.customerInfo.email = 'customer@email.com';
+        invoiceData.customerInfo.phone = '+91 98765 43210';
+        invoiceData.customerInfo.address = '123, Customer Address, City, State - 560001';
+      }
+      
+      // Generate and download PDF
+      generateInvoicePDF(invoiceData);
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      successMessage.textContent = `Invoice for ${orderId} downloaded successfully!`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = 'Error generating PDF. Please try again.';
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage);
+      }, 3000);
+    }
+  };
+
   const activeOrders = mockOrders.filter(order => 
     order.status !== "completed" && order.status !== "cancelled"
   );
@@ -285,7 +342,7 @@ export default function OrdersPage() {
               <div>
                 <p className="text-sm font-medium text-secondary-600">Total Spent</p>
                 <p className="text-2xl font-bold text-secondary-900">
-                  ${mockOrders.reduce((sum, order) => sum + order.amount, 0)}
+                  ₹{mockOrders.reduce((sum, order) => sum + order.amount, 0)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center">
@@ -354,7 +411,7 @@ export default function OrdersPage() {
                     <div className="flex flex-col items-end space-y-3">
                       <div className="text-right">
                         <div className="text-2xl font-bold text-primary-600">
-                          ${order.amount}
+                          ₹{order.amount}
                         </div>
                         <div className="text-sm text-secondary-600">
                           Total Amount
@@ -377,6 +434,16 @@ export default function OrdersPage() {
                         >
                           <PhoneIcon className="h-5 w-5" />
                         </button>
+
+                        {(order.status === "completed" || order.paymentStatus === "paid") && (
+                          <button
+                            onClick={() => handleDownloadInvoice(order.id)}
+                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-primary-600"
+                            title="Download Invoice"
+                          >
+                            <ArrowDownTrayIcon className="h-5 w-5" />
+                          </button>
+                        )}
 
                         {order.status === "pending" && (
                           <button

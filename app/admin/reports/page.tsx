@@ -47,7 +47,7 @@ const reportTypes = [
 const quickStats = [
   {
     name: 'Monthly Revenue',
-    value: '$234,567',
+    value: '₹234,567',
     change: '+12.5%',
     changeType: 'increase',
     period: 'vs last month'

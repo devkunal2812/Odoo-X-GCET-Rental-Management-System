@@ -255,7 +255,7 @@ export default function ProductDetailPage() {
                         : 'hover:opacity-80 border-secondary-300 text-secondary-900'
                     }`}
                   >
-                    <div className="font-semibold">${period.price}</div>
+                    <div className="font-semibold">₹{period.price}</div>
                     <div className="text-sm">per {period.unit}</div>
                   </button>
                 ))}
@@ -335,10 +335,10 @@ export default function ProductDetailPage() {
             <div className="p-4 rounded-lg mb-6 bg-white border-2 border-secondary-300">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-secondary-900">Total Price:</span>
-                <span className="text-2xl font-bold text-primary-600">${totalPrice}</span>
+                <span className="text-2xl font-bold text-primary-600">₹{totalPrice}</span>
               </div>
               <p className="text-sm mt-1 text-secondary-600">
-                {quantity} × ${selectedRentalPeriod.price} × {rentalDuration} {selectedRentalPeriod.unit}(s)
+                {quantity} × ₹{selectedRentalPeriod.price} × {rentalDuration} {selectedRentalPeriod.unit}(s)
               </p>
             </div>
 

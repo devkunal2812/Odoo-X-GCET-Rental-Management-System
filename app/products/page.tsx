@@ -422,7 +422,7 @@ export default function ProductsPage() {
                   {/* Price and Actions */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-2xl font-bold text-secondary-900">${product.price}</span>
+                      <span className="text-2xl font-bold text-secondary-900">₹{product.price}</span>
                       <span className="text-secondary-500">/{product.period}</span>
                     </div>
                     
