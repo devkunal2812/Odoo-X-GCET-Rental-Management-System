@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
+import { 
+  getSystemSettings, 
+  calculateGST, 
+  calculatePlatformFee,
+  getCompanyInfo 
+} from "@/app/lib/settings";
 
 export const POST = requireRole("VENDOR")(
   async (request: NextRequest, { params, user }: any) => {
@@ -48,23 +54,17 @@ export const POST = requireRole("VENDOR")(
         );
       }
 
-      // Get system settings for tax and invoice configuration
-      const [gstSetting, invoicePrefixSetting, currencySetting] = await Promise.all([
-        prisma.systemSettings.findUnique({ where: { key: "gst_percentage" } }),
-        prisma.systemSettings.findUnique({ where: { key: "invoice_prefix" } }),
-        prisma.systemSettings.findUnique({ where: { key: "currency" } }),
-      ]);
-
-      const gstPercentage = gstSetting ? parseFloat(gstSetting.value) : 18;
-      const invoicePrefix = invoicePrefixSetting?.value || "INV";
-      const currency = currencySetting?.value || "INR";
+      // Get system settings
+      const settings = await getSystemSettings();
+      const companyInfo = await getCompanyInfo();
 
       // Calculate subtotal (before tax)
-      const subtotal = order.totalAmount / (1 + gstPercentage / 100);
+      const subtotal = order.totalAmount / (1 + settings.gst_percentage / 100);
       const taxAmount = order.totalAmount - subtotal;
+      const platformFee = await calculatePlatformFee(subtotal);
 
       // Generate invoice number with prefix
-      const invoiceNumber = `${invoicePrefix}-${Date.now()}`;
+      const invoiceNumber = `${settings.invoice_prefix}-${Date.now()}`;
 
       // Create invoice with detailed breakdown
       const invoice = await prisma.invoice.create({
@@ -135,12 +135,22 @@ export const POST = requireRole("VENDOR")(
           // Tax breakdown
           taxBreakup: {
             subtotal: subtotal.toFixed(2),
-            gstPercentage,
+            gstPercentage: settings.gst_percentage,
             gstAmount: taxAmount.toFixed(2),
+            platformFee: platformFee.toFixed(2),
             discount: order.discount,
             grandTotal: order.totalAmount.toFixed(2),
           },
-          // Company details
+          // Company details (from admin settings)
+          companyInfo: {
+            name: companyInfo.name,
+            address: companyInfo.address,
+            phone: companyInfo.phone,
+            email: companyInfo.email,
+            website: companyInfo.website,
+            gstin: companyInfo.gstin,
+          },
+          // Vendor details
           vendorDetails: {
             companyName: order.vendor.companyName,
             gstin: order.vendor.gstin,
@@ -159,7 +169,7 @@ export const POST = requireRole("VENDOR")(
             startDate: order.startDate,
             endDate: order.endDate,
           },
-          currency,
+          currency: settings.currency,
         },
       });
     } catch (error: any) {

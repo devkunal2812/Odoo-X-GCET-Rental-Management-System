@@ -598,6 +598,14 @@ export interface InvoiceAPIData {
     logoUrl?: string;
   };
   lines?: { name: string; quantity: number; unitPrice: number; amount: number }[];
+  companyInfo?: {
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+    gstin: string;
+  };
 }
 
 export const buildInvoiceData = (data: InvoiceAPIData): InvoiceData => {
@@ -611,6 +619,16 @@ export const buildInvoiceData = (data: InvoiceAPIData): InvoiceData => {
     const endDate = new Date(end);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     return `${startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${endDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${days} days)`;
+  };
+
+  // Use provided company info or defaults
+  const companyInfo = data.companyInfo || {
+    name: 'RentMarket Platform',
+    address: '123 Platform Street, Tech City, CA 94000',
+    phone: '+1-800-RENTALS',
+    email: 'support@rentmarket.com',
+    website: 'www.rentmarket.com',
+    gstin: '29PLATFORM1234F1Z5'
   };
 
   return {
@@ -645,14 +663,7 @@ export const buildInvoiceData = (data: InvoiceAPIData): InvoiceData => {
       gstin: data.vendor?.gstin,
       logoUrl: data.vendor?.logoUrl
     },
-    companyInfo: {
-      name: 'RentERP Solutions',
-      address: 'Whitefield, Bangalore, Karnataka - 560066',
-      phone: '+91 80 1234 5678',
-      email: 'support@rentalerp.com',
-      website: 'www.rentalerp.com',
-      gstin: '29XYZAB1234C1D6'
-    }
+    companyInfo
   };
 };
 

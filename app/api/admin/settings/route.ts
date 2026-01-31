@@ -52,7 +52,7 @@ export const GET = requireRole("ADMIN")(async (request: NextRequest) => {
 });
 
 const settingsUpdateSchema = z.object({
-  settings: z.record(z.string(), z.string()).optional(),
+  settings: z.record(z.string(), z.any()).optional(),
   rentalPeriods: z.array(z.object({
     id: z.string().optional(),
     name: z.string(),
@@ -95,12 +95,15 @@ export const PUT = requireRole("ADMIN")(
       // Update settings
       if (data.settings) {
         for (const [key, value] of Object.entries(data.settings)) {
+          // Convert value to string for storage
+          const stringValue = String(value);
+          
           const setting = await prisma.systemSettings.upsert({
             where: { key },
-            update: { value },
+            update: { value: stringValue },
             create: {
               key,
-              value,
+              value: stringValue,
               description: getSettingDescription(key),
             },
           });
@@ -109,9 +112,14 @@ export const PUT = requireRole("ADMIN")(
       }
 
       // Update rental periods
-      if (data.rentalPeriods) {
+      if (data.rentalPeriods && Array.isArray(data.rentalPeriods)) {
+        // Get existing rental periods
+        const existingPeriods = await prisma.rentalPeriodConfig.findMany();
+        const existingIds = new Set(existingPeriods.map(p => p.id));
+        const updatedIds = new Set<string>();
+
         for (const period of data.rentalPeriods) {
-          if (period.id) {
+          if (period.id && existingIds.has(period.id)) {
             // Update existing by ID
             const updated = await prisma.rentalPeriodConfig.update({
               where: { id: period.id },
@@ -122,8 +130,9 @@ export const PUT = requireRole("ADMIN")(
               },
             });
             results.updatedRentalPeriods.push(updated);
+            updatedIds.add(period.id);
           } else {
-            // Upsert by name (create or update)
+            // Create new or upsert by name
             const upserted = await prisma.rentalPeriodConfig.upsert({
               where: { name: period.name },
               update: {
@@ -137,6 +146,19 @@ export const PUT = requireRole("ADMIN")(
               },
             });
             results.updatedRentalPeriods.push(upserted);
+            if (upserted.id) updatedIds.add(upserted.id);
+          }
+        }
+
+        // Delete rental periods that were removed (not in the updated list)
+        const periodsToDelete = existingPeriods.filter(p => !updatedIds.has(p.id));
+        for (const period of periodsToDelete) {
+          try {
+            await prisma.rentalPeriodConfig.delete({
+              where: { id: period.id },
+            });
+          } catch (error) {
+            console.warn(`Could not delete rental period ${period.id}, it may be in use`);
           }
         }
       }
@@ -175,19 +197,41 @@ export const PUT = requireRole("ADMIN")(
  */
 function getSettingDescription(key: string): string {
   const descriptions: Record<string, string> = {
-    gst_percentage: "GST/Tax percentage applied to invoices",
-    platform_fee: "Platform fee percentage",
+    // General Settings
+    site_name: "Name of the rental platform",
+    site_description: "Description of the rental platform",
+    maintenance_mode: "Enable/disable maintenance mode",
+    allow_registration: "Allow new user registrations",
     invoice_prefix: "Invoice number prefix (e.g., INV)",
     currency: "Currency code (e.g., USD, INR)",
-    late_fee_rate: "Late fee rate per day (as decimal, e.g., 0.1 = 10%)",
-    late_fee_grace_period_hours: "Grace period in hours before late fees apply",
+    
+    // Company Details
     company_name: "Company name for invoices",
     company_address: "Company address for invoices",
     company_gstin: "Company GSTIN for invoices",
     company_phone: "Company phone number",
     company_email: "Company email address",
+    
+    // Payment & Fees
+    platform_fee: "Platform fee percentage",
+    gst_percentage: "GST/Tax percentage applied to invoices",
+    payment_gateway: "Payment gateway provider",
+    auto_payouts: "Enable automatic vendor payouts",
+    minimum_payout: "Minimum payout amount",
     security_deposit_percentage: "Security deposit as percentage of order amount",
-    default_rental_period: "Default rental period ID",
+    late_fee_rate: "Late fee rate per day (as decimal, e.g., 0.1 = 10%)",
+    late_fee_grace_period_hours: "Grace period in hours before late fees apply",
+    
+    // Security
+    two_factor_auth: "Enable two-factor authentication",
+    session_timeout: "Session timeout in minutes",
+    password_min_length: "Minimum password length",
+    require_strong_password: "Require strong passwords",
+    
+    // Notifications
+    email_notifications: "Enable email notifications",
+    sms_notifications: "Enable SMS notifications",
+    admin_alerts: "Enable admin alerts",
   };
 
   return descriptions[key] || "";
