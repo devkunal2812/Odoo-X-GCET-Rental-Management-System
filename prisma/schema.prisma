@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Rental Management System - Database Schema
+// Supports multi-vendor rental marketplace with reservation logic
 
 generator client {
   provider = "prisma-client-js"
@@ -14,7 +11,369 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Test {
-  id   String @id @default(uuid())
-  name String
+// ============================================
+// 1. User & Access Models
+// ============================================
+
+model User {
+  id            String   @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(CUSTOMER)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  vendorProfile   VendorProfile?
+  customerProfile CustomerProfile?
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+  CUSTOMER
+}
+
+model VendorProfile {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  companyName String
+  gstin       String?
+  logoUrl     String?
+  address     String?
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products Product[]
+  orders   SaleOrder[]
+
+  @@map("vendor_profiles")
+}
+
+model CustomerProfile {
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  phone          String?
+  defaultAddress String?
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders SaleOrder[]
+
+  @@map("customer_profiles")
+}
+
+// ============================================
+// 2. Product & Inventory Models
+// ============================================
+
+model Product {
+  id          String      @id @default(uuid())
+  vendorId    String
+  name        String
+  description String?
+  productType ProductType @default(GOODS)
+  isRentable  Boolean     @default(true)
+  published   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  vendor           VendorProfile      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  pricing          ProductPricing[]
+  inventory        Inventory?
+  variants         ProductVariant[]
+  orderLines       SaleOrderLine[]
+  invoiceLines     InvoiceLine[]
+  reservations     Reservation[]
+  attributeValues  ProductAttributeValue[]
+
+  @@index([vendorId, published])
+  @@map("products")
+}
+
+enum ProductType {
+  GOODS
+  SERVICE
+}
+
+model ProductPricing {
+  id              String @id @default(uuid())
+  productId       String
+  rentalPeriodId  String
+  price           Float
+
+  product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rentalPeriod RentalPeriodConfig @relation(fields: [rentalPeriodId], references: [id])
+
+  @@unique([productId, rentalPeriodId])
+  @@map("product_pricing")
+}
+
+model Inventory {
+  productId      String @id
+  quantityOnHand Int    @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("inventory")
+}
+
+// ============================================
+// 3. Attributes & Variants
+// ============================================
+
+model Attribute {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  displayType DisplayType @default(RADIO)
+
+  values              AttributeValue[]
+  productAttributeValues ProductAttributeValue[]
+
+  @@map("attributes")
+}
+
+enum DisplayType {
+  RADIO
+  PILLS
+  CHECKBOX
+}
+
+model AttributeValue {
+  id          String @id @default(uuid())
+  attributeId String
+  value       String
+
+  attribute              Attribute               @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  variantAttributeValues VariantAttributeValue[]
+
+  @@map("attribute_values")
+}
+
+model ProductAttributeValue {
+  id          String @id @default(uuid())
+  productId   String
+  attributeId String
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeId])
+  @@map("product_attribute_values")
+}
+
+model ProductVariant {
+  id            String  @id @default(uuid())
+  productId     String
+  sku           String  @unique
+  priceModifier Float   @default(0)
+
+  product                Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderLines             SaleOrderLine[]
+  variantAttributeValues VariantAttributeValue[]
+
+  @@map("product_variants")
+}
+
+model VariantAttributeValue {
+  id               String @id @default(uuid())
+  variantId        String
+  attributeValueId String
+
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  attributeValue AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, attributeValueId])
+  @@map("variant_attribute_values")
+}
+
+// ============================================
+// 4. Rental & Order Models
+// ============================================
+
+model SaleOrder {
+  id          String          @id @default(uuid())
+  orderNumber String          @unique
+  customerId  String
+  vendorId    String
+  couponId    String?
+  status      SaleOrderStatus @default(QUOTATION)
+  startDate   DateTime?
+  endDate     DateTime?
+  orderDate   DateTime        @default(now())
+  totalAmount Float           @default(0)
+  discount    Float           @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  customer     CustomerProfile @relation(fields: [customerId], references: [id])
+  vendor       VendorProfile   @relation(fields: [vendorId], references: [id])
+  coupon       Coupon?         @relation(fields: [couponId], references: [id])
+  lines        SaleOrderLine[]
+  invoices     Invoice[]
+  reservations Reservation[]
+
+  @@index([status, orderDate])
+  @@map("sale_orders")
+}
+
+enum SaleOrderStatus {
+  QUOTATION
+  SENT
+  CONFIRMED
+  INVOICED
+  CANCELLED
+}
+
+model SaleOrderLine {
+  id          String    @id @default(uuid())
+  orderId     String
+  productId   String
+  variantId   String?
+  quantity    Int
+  unitPrice   Float
+  rentalStart DateTime?
+  rentalEnd   DateTime?
+
+  order   SaleOrder       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("sale_order_lines")
+}
+
+// ============================================
+// 5. Reservation (Overbooking Prevention)
+// ============================================
+
+model Reservation {
+  id          String   @id @default(uuid())
+  productId   String
+  quantity    Int
+  startDate   DateTime
+  endDate     DateTime
+  saleOrderId String
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleOrder SaleOrder @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+
+  @@index([productId, startDate, endDate])
+  @@map("reservations")
+}
+
+// ============================================
+// 6. Invoicing & Payments
+// ============================================
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  saleOrderId   String
+  status        InvoiceStatus @default(DRAFT)
+  invoiceDate   DateTime      @default(now())
+  dueDate       DateTime?
+  totalAmount   Float         @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  saleOrder SaleOrder     @relation(fields: [saleOrderId], references: [id])
+  lines     InvoiceLine[]
+  payments  Payment[]
+
+  @@index([invoiceDate, status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  POSTED
+}
+
+model InvoiceLine {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  productId   String
+  description String?
+  quantity    Int
+  unitPrice   Float
+  amount      Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  invoiceId      String
+  method         String
+  amount         Float
+  status         PaymentStatus @default(PENDING)
+  transactionRef String?
+  createdAt      DateTime      @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// 7. Configuration & Settings
+// ============================================
+
+model RentalPeriodConfig {
+  id       String @id @default(uuid())
+  name     String @unique
+  unit     String
+  duration Int
+
+  productPricing ProductPricing[]
+
+  @@map("rental_period_configs")
+}
+
+model Coupon {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  discountType String
+  value        Float
+  validFrom    DateTime
+  validTo      DateTime
+  isActive     Boolean   @default(true)
+  maxUses      Int?
+  usedCount    Int       @default(0)
+
+  orders SaleOrder[]
+
+  @@map("coupons")
+}
+
+// ============================================
+// 8. Reporting & Audit
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  timestamp DateTime @default(now())
+  metadata  String?
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
 }
