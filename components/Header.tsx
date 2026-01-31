@@ -12,6 +12,7 @@ import {
   MagnifyingGlassIcon,
   BellIcon
 } from "@heroicons/react/24/outline";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   currentPage?: string;
@@ -21,6 +22,7 @@ export default function Header({ currentPage }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, isAuthenticated, isCustomer, logout } = useAuth();
 
   // Handle scroll effect
   useEffect(() => {
@@ -60,10 +62,18 @@ export default function Header({ currentPage }: HeaderProps) {
 
   const navItems = [
     { href: "/products", label: "Products", page: "products" },
-    { href: "/orders", label: "My Orders", page: "orders" },
+    ...(isAuthenticated && isCustomer ? [{ href: "/orders", label: "My Orders", page: "orders" }] : []),
     { href: "/about", label: "About", page: "about" },
     { href: "/contact", label: "Contact", page: "contact" },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <motion.header 
@@ -171,29 +181,54 @@ export default function Header({ currentPage }: HeaderProps) {
             </motion.div>
 
             <div className="flex items-center space-x-2">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Link 
-                  href="/login" 
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors font-medium"
-                >
-                  Sign In
-                </Link>
-              </motion.div>
-              
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Link 
-                  href="/signup" 
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
-                >
-                  Sign Up
-                </Link>
-              </motion.div>
+              {isAuthenticated ? (
+                <>
+                  <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100">
+                    <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">
+                        {user?.firstName?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">
+                      {user?.firstName}
+                    </span>
+                  </div>
+                  <motion.button
+                    onClick={handleLogout}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors font-medium"
+                  >
+                    Logout
+                  </motion.button>
+                </>
+              ) : (
+                <>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Link 
+                      href="/login" 
+                      className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors font-medium"
+                    >
+                      Sign In
+                    </Link>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Link 
+                      href="/signup" 
+                      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                    >
+                      Sign Up
+                    </Link>
+                  </motion.div>
+                </>
+              )}
             </div>
           </div>
 
@@ -316,22 +351,50 @@ export default function Header({ currentPage }: HeaderProps) {
                     <HeartIcon className="h-5 w-5 mr-3" />
                     Wishlist
                   </Link>
-                  <Link 
-                    href="/login" 
-                    className="flex items-center px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium"
-                    onClick={closeMenu}
-                  >
-                    <UserIcon className="h-5 w-5 mr-3" />
-                    Sign In
-                  </Link>
-                  <Link 
-                    href="/signup" 
-                    className="flex items-center px-4 py-3 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors font-medium"
-                    onClick={closeMenu}
-                  >
-                    <UserIcon className="h-5 w-5 mr-3" />
-                    Sign Up
-                  </Link>
+                  {isAuthenticated ? (
+                    <>
+                      <div className="flex items-center px-4 py-3 rounded-lg bg-gray-100">
+                        <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center mr-3">
+                          <span className="text-white font-bold text-sm">
+                            {user?.firstName?.charAt(0) || 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
+                          <p className="text-xs text-gray-600">{user?.email}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          handleLogout();
+                          closeMenu();
+                        }}
+                        className="flex items-center w-full px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors font-medium"
+                      >
+                        <UserIcon className="h-5 w-5 mr-3" />
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link 
+                        href="/login" 
+                        className="flex items-center px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium"
+                        onClick={closeMenu}
+                      >
+                        <UserIcon className="h-5 w-5 mr-3" />
+                        Sign In
+                      </Link>
+                      <Link 
+                        href="/signup" 
+                        className="flex items-center px-4 py-3 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors font-medium"
+                        onClick={closeMenu}
+                      >
+                        <UserIcon className="h-5 w-5 mr-3" />
+                        Sign Up
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

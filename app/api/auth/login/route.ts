@@ -66,6 +66,12 @@ export async function POST(request: NextRequest) {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        isActive: user.isActive,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        vendorProfile: user.vendorProfile,
+        customerProfile: user.customerProfile,
       },
     });
 

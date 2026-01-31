@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   EyeIcon,
@@ -12,209 +12,211 @@ import {
   DocumentTextIcon,
   ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
-import { generateInvoicePDF, generateSampleInvoiceData } from "../../../lib/invoiceGenerator";
+import { generateInvoicePDF, buildInvoiceData } from "../../../lib/invoiceGenerator";
+import { api } from "@/app/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock data
-const mockOrders = [
-  {
-    id: "ORD-001",
-    customer: {
-      name: "John Smith",
-      email: "john.smith@email.com",
-      phone: "+1 (555) 123-4567"
-    },
+// Types for API response
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  discount: number;
+  customer: {
+    user: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  };
+  lines: {
     product: {
-      name: "Professional Camera Kit",
-      image: "/api/placeholder/80/80"
-    },
-    amount: 150,
-    duration: 3,
-    unit: "days",
-    status: "confirmed",
-    orderDate: "2024-01-30",
-    startDate: "2024-02-01",
-    endDate: "2024-02-04",
-    pickupLocation: "Downtown Store",
-    notes: "Customer requested early pickup at 8 AM"
-  },
-  {
-    id: "ORD-002",
-    customer: {
-      name: "Sarah Johnson", 
-      email: "sarah.j@email.com",
-      phone: "+1 (555) 234-5678"
-    },
-    product: {
-      name: "Power Drill Set",
-      image: "/api/placeholder/80/80"
-    },
-    amount: 45,
-    duration: 1,
-    unit: "day",
-    status: "in-progress",
-    orderDate: "2024-01-29",
-    startDate: "2024-01-30",
-    endDate: "2024-01-31",
-    pickupLocation: "North Branch",
-    notes: ""
-  },
-  {
-    id: "ORD-003",
-    customer: {
-      name: "Mike Wilson",
-      email: "mike.wilson@email.com", 
-      phone: "+1 (555) 345-6789"
-    },
-    product: {
-      name: "Party Sound System",
-      image: "/api/placeholder/80/80"
-    },
-    amount: 200,
-    duration: 2,
-    unit: "days",
-    status: "completed",
-    orderDate: "2024-01-28",
-    startDate: "2024-01-29",
-    endDate: "2024-01-31",
-    pickupLocation: "Main Store",
-    notes: "Equipment returned in excellent condition"
-  },
-  {
-    id: "ORD-004",
-    customer: {
-      name: "Emily Davis",
-      email: "emily.davis@email.com",
-      phone: "+1 (555) 456-7890"
-    },
-    product: {
-      name: "Mountain Bike",
-      image: "/api/placeholder/80/80"
-    },
-    amount: 90,
-    duration: 3,
-    unit: "days", 
-    status: "pending",
-    orderDate: "2024-01-27",
-    startDate: "2024-02-02",
-    endDate: "2024-02-05",
-    pickupLocation: "South Location",
-    notes: "Customer will provide own helmet"
-  },
-  {
-    id: "ORD-005",
-    customer: {
-      name: "David Brown",
-      email: "david.brown@email.com",
-      phone: "+1 (555) 567-8901"
-    },
-    product: {
-      name: "Projector & Screen",
-      image: "/api/placeholder/80/80"
-    },
-    amount: 120,
-    duration: 2,
-    unit: "days",
-    status: "cancelled",
-    orderDate: "2024-01-26",
-    startDate: "2024-01-28",
-    endDate: "2024-01-30",
-    pickupLocation: "Downtown Store",
-    notes: "Customer cancelled due to event postponement"
-  }
-];
+      name: string;
+    };
+    quantity: number;
+  }[];
+}
 
-const statusOptions = ["All", "Pending", "Confirmed", "In-Progress", "Completed", "Cancelled"];
+const statusOptions = ["All", "QUOTATION", "SENT", "CONFIRMED", "INVOICED", "PICKED_UP", "RETURNED", "CANCELLED"];
 
 const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case "pending":
+  switch (status.toUpperCase()) {
+    case "QUOTATION":
       return { bg: "#fef3c7", text: "#d97706", icon: ClockIcon };
-    case "confirmed":
+    case "SENT":
+      return { bg: "#e0e7ff", text: "#4f46e5", icon: ClockIcon };
+    case "CONFIRMED":
       return { bg: "#dcfce7", text: "#16a34a", icon: CheckCircleIcon };
-    case "in-progress":
-      return { bg: "#dbeafe", text: "#2563eb", icon: ClockIcon };
-    case "completed":
+    case "INVOICED":
+      return { bg: "#dbeafe", text: "#2563eb", icon: DocumentTextIcon };
+    case "PICKED_UP":
+      return { bg: "#fef3c7", text: "#d97706", icon: ClockIcon };
+    case "RETURNED":
       return { bg: "#f0f9ff", text: "#0369a1", icon: CheckCircleIcon };
-    case "cancelled":
+    case "CANCELLED":
       return { bg: "#fee2e2", text: "#dc2626", icon: XCircleIcon };
     default:
       return { bg: "#f0f9ff", text: "#1e40af", icon: ClockIcon };
   }
 };
 
+// Calculate days between dates
+const calculateDays = (startDate: string, endDate: string): string => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+};
+
 export default function VendorOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const filteredOrders = mockOrders.filter(order => {
-    const matchesSearch = 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === "All" || order.status.toLowerCase() === selectedStatus.toLowerCase();
+  // Fetch orders from API
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get<{ success: boolean; orders: Order[] }>('/orders');
+        if (response.success) {
+          setOrders(response.orders || []);
+        }
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchOrders();
+    }
+  }, [user]);
+
+  // Filter orders based on search and status
+  const filteredOrders = orders.filter(order => {
+    const customerName = order.customer?.user ?
+      `${order.customer.user.firstName} ${order.customer.user.lastName}` : '';
+    const productName = order.lines?.[0]?.product?.name || '';
+
+    const matchesSearch =
+      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      productName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === "All" || order.status.toUpperCase() === selectedStatus.toUpperCase();
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusUpdate = (orderId: string, newStatus: string) => {
-    // In a real app, this would make an API call
-    console.log(`Updating order ${orderId} to ${newStatus}`);
+  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+    try {
+      // Map status to API endpoint
+      const statusEndpoints: Record<string, string> = {
+        'SENT': `/orders/${orderId}/send`,
+        'CONFIRMED': `/orders/${orderId}/confirm`,
+        'PICKED_UP': `/orders/${orderId}/pickup`,
+        'RETURNED': `/orders/${orderId}/return`,
+      };
+
+      const endpoint = statusEndpoints[newStatus];
+      if (endpoint) {
+        await api.post(endpoint, {});
+        // Refresh orders after update
+        const response = await api.get<{ success: boolean; orders: Order[] }>('/orders');
+        if (response.success) {
+          setOrders(response.orders || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+    }
   };
 
-  const handleDownloadInvoice = (orderId: string) => {
+  const handleDownloadInvoice = async (order: Order) => {
     try {
-      // Generate sample invoice data (in real app, this would come from API)
-      const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
-      
-      // Find the actual order from mockOrders to get real data
-      const actualOrder = mockOrders.find(order => order.id === orderId);
-      if (actualOrder) {
-        // Update the sample data with actual order data
-        invoiceData.id = `INV-${orderId}`;
-        invoiceData.orderId = actualOrder.id;
-        invoiceData.product = actualOrder.product.name;
-        invoiceData.vendor = 'Your Vendor Company'; // In real app, get from vendor context
-        invoiceData.amount = actualOrder.amount;
-        invoiceData.total = actualOrder.amount + (actualOrder.amount * 0.18) + 25; // Add tax and service fee
-        invoiceData.status = actualOrder.status === 'completed' ? 'paid' : 'pending';
-        invoiceData.rentalPeriod = `${actualOrder.startDate} to ${actualOrder.endDate} (${actualOrder.duration} ${actualOrder.unit})`;
-        
-        // Update customer info
-        invoiceData.customerInfo.name = actualOrder.customer.name;
-        invoiceData.customerInfo.email = actualOrder.customer.email;
-        invoiceData.customerInfo.phone = actualOrder.customer.phone;
-        invoiceData.customerInfo.address = '123, Customer Address, City, State - 560001';
-      }
-      
-      // Generate and download PDF
-      generateInvoicePDF(invoiceData);
-      
-      // Show success message
+      const customerName = order.customer?.user ?
+        `${order.customer.user.firstName} ${order.customer.user.lastName}` : 'Customer';
+      const tax = order.totalAmount * 0.18;
+
+      const invoiceData = buildInvoiceData({
+        invoiceNumber: `INV-${order.orderNumber}`,
+        orderNumber: order.orderNumber,
+        status: order.status === 'RETURNED' ? 'paid' : 'pending',
+        invoiceDate: order.createdAt,
+        totalAmount: order.totalAmount + tax,
+        subtotal: order.totalAmount,
+        taxAmount: tax,
+        startDate: order.startDate,
+        endDate: order.endDate,
+        customer: {
+          name: customerName,
+          email: order.customer?.user?.email || ''
+        },
+        vendor: {
+          name: user?.vendorProfile?.companyName || 'Vendor',
+          gstin: user?.vendorProfile?.gstin,
+          logoUrl: user?.vendorProfile?.logoUrl
+        },
+        lines: order.lines?.map(line => ({
+          name: line.product?.name || 'Item',
+          quantity: line.quantity,
+          unitPrice: order.totalAmount / (order.lines?.reduce((sum, l) => sum + l.quantity, 0) || 1),
+          amount: order.totalAmount / (order.lines?.length || 1)
+        })) || []
+      });
+
+      await generateInvoicePDF(invoiceData);
+
       const successMessage = document.createElement('div');
       successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      successMessage.textContent = `Invoice for ${orderId} downloaded successfully!`;
+      successMessage.textContent = `Invoice for ${order.orderNumber} downloaded successfully!`;
       document.body.appendChild(successMessage);
-      
-      // Remove success message after 3 seconds
-      setTimeout(() => {
-        document.body.removeChild(successMessage);
-      }, 3000);
-      
+      setTimeout(() => document.body.removeChild(successMessage), 3000);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      
-      // Show error message
       const errorMessage = document.createElement('div');
       errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
       errorMessage.textContent = 'Error generating PDF. Please try again.';
       document.body.appendChild(errorMessage);
-      
-      // Remove error message after 3 seconds
-      setTimeout(() => {
-        document.body.removeChild(errorMessage);
-      }, 3000);
+      setTimeout(() => document.body.removeChild(errorMessage), 3000);
     }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-secondary-900">Orders Management</h1>
+            <p className="mt-2 text-secondary-600">Track and manage your rental orders</p>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+              <div className="flex items-start space-x-4">
+                <div className="w-20 h-20 rounded-lg bg-gray-200"></div>
+                <div className="flex-1">
+                  <div className="w-32 h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="w-48 h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="w-40 h-4 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -294,7 +296,11 @@ export default function VendorOrders() {
         {filteredOrders.map((order) => {
           const statusColor = getStatusColor(order.status);
           const StatusIcon = statusColor.icon;
-          
+          const customerName = order.customer?.user ?
+            `${order.customer.user.firstName} ${order.customer.user.lastName}` : 'Unknown';
+          const productName = order.lines?.[0]?.product?.name || 'N/A';
+          const duration = order.startDate && order.endDate ? calculateDays(order.startDate, order.endDate) : 'N/A';
+
           return (
             <div key={order.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
               <div className="p-6">
@@ -304,11 +310,11 @@ export default function VendorOrders() {
                     {/* Product Image */}
                     <div className="w-20 h-20 rounded-lg flex-shrink-0 bg-secondary-300">
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center mb-2">
                         <h3 className="font-bold text-lg mr-3 text-secondary-900">
-                          {order.id}
+                          {order.orderNumber}
                         </h3>
                         <span
                           className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
@@ -318,16 +324,16 @@ export default function VendorOrders() {
                           {order.status}
                         </span>
                       </div>
-                      
+
                       <h4 className="font-semibold mb-1 text-secondary-900">
-                        {order.product.name}
+                        {productName}
                       </h4>
-                      
+
                       <div className="text-sm space-y-1 text-secondary-600">
-                        <p><strong>Customer:</strong> {order.customer.name}</p>
-                        <p><strong>Duration:</strong> {order.duration} {order.unit}</p>
-                        <p><strong>Pickup:</strong> {order.pickupLocation}</p>
-                        <p><strong>Dates:</strong> {new Date(order.startDate).toLocaleDateString()} - {new Date(order.endDate).toLocaleDateString()}</p>
+                        <p><strong>Customer:</strong> {customerName}</p>
+                        <p><strong>Duration:</strong> {duration}</p>
+                        <p><strong>Dates:</strong> {order.startDate && order.endDate ?
+                          `${new Date(order.startDate).toLocaleDateString()} - ${new Date(order.endDate).toLocaleDateString()}` : 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -336,7 +342,7 @@ export default function VendorOrders() {
                   <div className="flex flex-col items-end space-y-3">
                     <div className="text-right">
                       <div className="text-2xl font-bold text-primary-600">
-                        ₹{order.amount}
+                        ₹{order.totalAmount?.toLocaleString() || 0}
                       </div>
                       <div className="text-sm text-secondary-600">
                         Order Total
@@ -351,17 +357,17 @@ export default function VendorOrders() {
                       >
                         <EyeIcon className="h-5 w-5" />
                       </Link>
-                      
-                      {(order.status === 'completed' || order.status === 'confirmed') && (
+
+                      {['RETURNED', 'CONFIRMED', 'INVOICED'].includes(order.status) && (
                         <button
-                          onClick={() => handleDownloadInvoice(order.id)}
+                          onClick={() => handleDownloadInvoice(order)}
                           className="p-2 rounded-lg hover:bg-secondary-100 transition-colors text-primary-600"
                           title="Download Invoice"
                         >
                           <ArrowDownTrayIcon className="h-5 w-5" />
                         </button>
                       )}
-                      
+
                       <Link
                         href={`/vendor/invoices/${order.id}`}
                         className="p-2 rounded-lg hover:bg-secondary-100 transition-colors text-primary-600"
@@ -370,9 +376,19 @@ export default function VendorOrders() {
                         <DocumentTextIcon className="h-5 w-5" />
                       </Link>
 
-                      {order.status === "pending" && (
+                      {order.status === "QUOTATION" && (
                         <button
-                          onClick={() => handleStatusUpdate(order.id, "confirmed")}
+                          onClick={() => handleStatusUpdate(order.id, "SENT")}
+                          className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
+                          style={{ backgroundColor: "#e0e7ff", color: "#4f46e5" }}
+                        >
+                          Send Quote
+                        </button>
+                      )}
+
+                      {order.status === "SENT" && (
+                        <button
+                          onClick={() => handleStatusUpdate(order.id, "CONFIRMED")}
                           className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
                           style={{ backgroundColor: "#dcfce7", color: "#16a34a" }}
                         >
@@ -380,9 +396,9 @@ export default function VendorOrders() {
                         </button>
                       )}
 
-                      {order.status === "confirmed" && (
+                      {order.status === "CONFIRMED" && (
                         <button
-                          onClick={() => handleStatusUpdate(order.id, "in-progress")}
+                          onClick={() => handleStatusUpdate(order.id, "PICKED_UP")}
                           className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
                           style={{ backgroundColor: "#dbeafe", color: "#2563eb" }}
                         >
@@ -390,9 +406,9 @@ export default function VendorOrders() {
                         </button>
                       )}
 
-                      {order.status === "in-progress" && (
+                      {order.status === "PICKED_UP" && (
                         <button
-                          onClick={() => handleStatusUpdate(order.id, "completed")}
+                          onClick={() => handleStatusUpdate(order.id, "RETURNED")}
                           className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
                           style={{ backgroundColor: "#f0f9ff", color: "#0369a1" }}
                         >
@@ -402,15 +418,6 @@ export default function VendorOrders() {
                     </div>
                   </div>
                 </div>
-
-                {/* Notes */}
-                {order.notes && (
-                  <div className="mt-4 pt-4 border-t border-secondary-200">
-                    <p className="text-sm text-secondary-600">
-                      <strong>Notes:</strong> {order.notes}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -427,17 +434,19 @@ export default function VendorOrders() {
             No orders found
           </h3>
           <p className="mb-6 text-secondary-600">
-            Try adjusting your search or filters
+            {orders.length === 0 ? "You don't have any orders yet." : "Try adjusting your search or filters"}
           </p>
-          <button
-            onClick={() => {
-              setSearchTerm("");
-              setSelectedStatus("All");
-            }}
-            className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-primary-600 text-white"
-          >
-            Clear Filters
-          </button>
+          {orders.length > 0 && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedStatus("All");
+              }}
+              className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-primary-600 text-white"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       )}
     </div>

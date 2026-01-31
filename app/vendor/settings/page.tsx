@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   UserIcon,
   BuildingStorefrontIcon,
@@ -13,23 +13,77 @@ import {
   MapPinIcon,
   CameraIcon
 } from "@heroicons/react/24/outline";
+import { api } from "@/app/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock data
-const mockSettings = {
+// Types for user data
+interface VendorSettings {
   profile: {
-    businessName: "TechRent Pro",
-    ownerName: "John Smith",
-    email: "john@techrentpro.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Business Ave, City, State 12345",
-    description: "Professional equipment rental service specializing in cameras, audio equipment, and tech gear.",
-    website: "https://techrentpro.com",
-    logo: "/api/placeholder/100/100"
+    businessName: string;
+    ownerName: string;
+    email: string;
+    phone: string;
+    address: string;
+    description: string;
+    website: string;
+    gstin: string;
+  };
+  business: {
+    businessType: string;
+    taxId: string;
+    licenseNumber: string;
+    operatingHours: {
+      [key: string]: { open: string; close: string; closed: boolean };
+    };
+  };
+  payment: {
+    bankAccount: {
+      accountHolder: string;
+      bankName: string;
+      accountNumber: string;
+      routingNumber: string;
+    };
+    upi: {
+      upiId: string;
+      verified: boolean;
+    };
+  };
+  notifications: {
+    emailNotifications: {
+      newOrders: boolean;
+      orderUpdates: boolean;
+      paymentReceived: boolean;
+      customerMessages: boolean;
+      marketingEmails: boolean;
+    };
+    smsNotifications: {
+      urgentOrders: boolean;
+      paymentIssues: boolean;
+      systemAlerts: boolean;
+    };
+  };
+  security: {
+    twoFactorEnabled: boolean;
+    lastPasswordChange: string;
+    loginSessions: number;
+  };
+}
+
+const defaultSettings: VendorSettings = {
+  profile: {
+    businessName: "",
+    ownerName: "",
+    email: "",
+    phone: "",
+    address: "",
+    description: "",
+    website: "",
+    gstin: ""
   },
   business: {
     businessType: "LLC",
-    taxId: "12-3456789",
-    licenseNumber: "BL-2024-001",
+    taxId: "",
+    licenseNumber: "",
     operatingHours: {
       monday: { open: "09:00", close: "18:00", closed: false },
       tuesday: { open: "09:00", close: "18:00", closed: false },
@@ -42,14 +96,14 @@ const mockSettings = {
   },
   payment: {
     bankAccount: {
-      accountHolder: "TechRent Pro LLC",
-      bankName: "First National Bank",
-      accountNumber: "****1234",
-      routingNumber: "****5678"
+      accountHolder: "",
+      bankName: "",
+      accountNumber: "",
+      routingNumber: ""
     },
-    paypal: {
-      email: "payments@techrentpro.com",
-      verified: true
+    upi: {
+      upiId: "",
+      verified: false
     }
   },
   notifications: {
@@ -67,29 +121,131 @@ const mockSettings = {
     }
   },
   security: {
-    twoFactorEnabled: true,
-    lastPasswordChange: "2024-01-15",
-    loginSessions: 3
+    twoFactorEnabled: false,
+    lastPasswordChange: new Date().toISOString(),
+    loginSessions: 1
   }
 };
 
 export default function VendorSettings() {
   const [activeTab, setActiveTab] = useState("profile");
-  const [settings, setSettings] = useState(mockSettings);
+  const [settings, setSettings] = useState<VendorSettings>(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
 
-  const handleSave = () => {
-    // In a real app, this would save to the backend
-    console.log("Saving settings:", settings);
-    alert("Settings saved successfully!");
-    setHasChanges(false);
+  // Load settings from user profile
+  useEffect(() => {
+    if (user) {
+      const vendorProfile = user.vendorProfile;
+      setSettings(prev => ({
+        ...prev,
+        profile: {
+          businessName: vendorProfile?.companyName || '',
+          ownerName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          email: user.email || '',
+          phone: vendorProfile?.phone || '',
+          address: vendorProfile?.address || '',
+          description: vendorProfile?.description || '',
+          website: vendorProfile?.website || '',
+          gstin: vendorProfile?.gstin || ''
+        },
+        business: {
+          ...prev.business,
+          taxId: vendorProfile?.gstin || ''
+        }
+      }));
+      if (vendorProfile?.logoUrl) {
+        setLogoUrl(vendorProfile.logoUrl);
+      }
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Handle logo file selection
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.match(/^image\/(png|jpeg|jpg|gif|webp)$/)) {
+      alert('Please select a valid image file (PNG, JPG, GIF, or WebP)');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image size must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      setLogoPreview(base64);
+
+      setUploadingLogo(true);
+      try {
+        const response = await api.post<{ success: boolean; logoUrl: string; error?: string }>('/vendor/logo', {
+          image: base64,
+          filename: file.name
+        });
+
+        if (response.success) {
+          setLogoUrl(response.logoUrl);
+          setLogoPreview(null);
+          alert('Logo uploaded! It will appear as watermark in invoices.');
+        } else {
+          alert(response.error || 'Failed to upload logo');
+          setLogoPreview(null);
+        }
+      } catch (error: any) {
+        alert(error.message || 'Failed to upload logo');
+        setLogoPreview(null);
+      } finally {
+        setUploadingLogo(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Update vendor profile
+      await api.patch('/users/me', {
+        firstName: settings.profile.ownerName.split(' ')[0],
+        lastName: settings.profile.ownerName.split(' ').slice(1).join(' ')
+      });
+
+      // Update vendor profile data
+      await api.patch('/vendor/profile', {
+        companyName: settings.profile.businessName,
+        phone: settings.profile.phone,
+        address: settings.profile.address,
+        description: settings.profile.description,
+        website: settings.profile.website,
+        gstin: settings.profile.gstin
+      });
+
+      alert("Settings saved successfully!");
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert("Failed to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleInputChange = (section: string, field: string, value: any) => {
     setSettings(prev => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof typeof prev],
+        ...(prev[section as keyof typeof prev] as Record<string, any>),
         [field]: value
       }
     }));
@@ -100,9 +256,9 @@ export default function VendorSettings() {
     setSettings(prev => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof typeof prev],
+        ...(prev[section as keyof typeof prev] as Record<string, any>),
         [subsection]: {
-          ...(prev[section as keyof typeof prev] as any)[subsection],
+          ...((prev[section as keyof typeof prev] as Record<string, any>)[subsection] as Record<string, any>),
           [field]: value
         }
       }
@@ -117,6 +273,39 @@ export default function VendorSettings() {
     { id: "notifications", name: "Notifications", icon: BellIcon },
     { id: "security", name: "Security", icon: ShieldCheckIcon }
   ];
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-secondary-900">Settings</h1>
+            <p className="mt-2 text-secondary-600">Manage your account and business preferences</p>
+          </div>
+        </div>
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="lg:w-64">
+            <div className="bg-white rounded-xl shadow-lg p-4 animate-pulse">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-12 bg-gray-200 rounded-lg mb-2"></div>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="bg-white rounded-xl shadow-lg p-8 animate-pulse">
+              <div className="w-48 h-8 bg-gray-200 rounded mb-6"></div>
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -133,9 +322,10 @@ export default function VendorSettings() {
         {hasChanges && (
           <button
             onClick={handleSave}
-            className="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 rounded-xl font-semibold text-white transition-all hover:shadow-lg transform hover:scale-105 bg-gradient-to-r from-primary-600 to-primary-700"
+            disabled={saving}
+            className="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 rounded-xl font-semibold text-white transition-all hover:shadow-lg transform hover:scale-105 bg-gradient-to-r from-primary-600 to-primary-700 disabled:opacity-50"
           >
-            Save Changes
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         )}
       </div>
@@ -151,11 +341,10 @@ export default function VendorSettings() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-primary-600 text-white'
-                        : 'text-secondary-600 hover:bg-secondary-100'
-                    }`}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === tab.id
+                      ? 'bg-primary-600 text-white'
+                      : 'text-secondary-600 hover:bg-secondary-100'
+                      }`}
                   >
                     <Icon className="h-5 w-5 mr-3" />
                     {tab.name}
@@ -178,16 +367,35 @@ export default function VendorSettings() {
 
                 {/* Logo Upload */}
                 <div className="flex items-center space-x-6">
-                  <div className="w-24 h-24 rounded-full flex items-center justify-center bg-secondary-600">
-                    <UserIcon className="h-12 w-12 text-white" />
+                  <div className="w-24 h-24 rounded-full flex items-center justify-center bg-secondary-200 overflow-hidden border-2 border-secondary-300">
+                    {logoPreview || logoUrl ? (
+                      <img
+                        src={logoPreview || logoUrl || ''}
+                        alt="Business logo"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <UserIcon className="h-12 w-12 text-secondary-500" />
+                    )}
                   </div>
                   <div>
-                    <button className="inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors hover:opacity-90 bg-primary-100 text-primary-600">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleLogoChange}
+                      accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors hover:opacity-90 bg-primary-100 text-primary-600 disabled:opacity-50"
+                    >
                       <CameraIcon className="h-5 w-5 mr-2" />
-                      Change Logo
+                      {uploadingLogo ? 'Uploading...' : 'Change Logo'}
                     </button>
                     <p className="text-sm mt-2 text-secondary-600">
-                      JPG, PNG or GIF. Max size 2MB.
+                      JPG, PNG, GIF or WebP. Max 2MB. Used as invoice watermark.
                     </p>
                   </div>
                 </div>
@@ -226,10 +434,11 @@ export default function VendorSettings() {
                       <input
                         type="email"
                         value={settings.profile.email}
-                        onChange={(e) => handleInputChange("profile", "email", e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-900"
+                        disabled
+                        className="w-full pl-10 pr-4 py-3 border-2 border-secondary-200 rounded-lg bg-gray-50 text-secondary-600"
                       />
                     </div>
+                    <p className="text-xs text-secondary-500 mt-1">Email cannot be changed</p>
                   </div>
 
                   <div>
@@ -245,6 +454,18 @@ export default function VendorSettings() {
                         className="w-full pl-10 pr-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-900"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-secondary-900">
+                      GSTIN
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.profile.gstin}
+                      onChange={(e) => handleInputChange("profile", "gstin", e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-900"
+                    />
                   </div>
                 </div>
 
@@ -314,12 +535,13 @@ export default function VendorSettings() {
                       <option value="Corporation">Corporation</option>
                       <option value="Partnership">Partnership</option>
                       <option value="Sole Proprietorship">Sole Proprietorship</option>
+                      <option value="Private Limited">Private Limited</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium mb-2 text-secondary-900">
-                      Tax ID / EIN
+                      Tax ID / GSTIN
                     </label>
                     <input
                       type="text"
@@ -412,96 +634,77 @@ export default function VendorSettings() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: "var(--dark-charcoal)" }}>
+                        <label className="block text-sm font-medium mb-2 text-secondary-900">
                           Account Holder Name
                         </label>
                         <input
                           type="text"
                           value={settings.payment.bankAccount.accountHolder}
                           onChange={(e) => handleNestedInputChange("payment", "bankAccount", "accountHolder", e.target.value)}
-                          className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none"
-                          style={{ 
-                            borderColor: "var(--light-sage)",
-                            color: "var(--dark-charcoal)"
-                          }}
+                          className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: "var(--dark-charcoal)" }}>
+                        <label className="block text-sm font-medium mb-2 text-secondary-900">
                           Bank Name
                         </label>
                         <input
                           type="text"
                           value={settings.payment.bankAccount.bankName}
                           onChange={(e) => handleNestedInputChange("payment", "bankAccount", "bankName", e.target.value)}
-                          className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none"
-                          style={{ 
-                            borderColor: "var(--light-sage)",
-                            color: "var(--dark-charcoal)"
-                          }}
+                          className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: "var(--dark-charcoal)" }}>
+                        <label className="block text-sm font-medium mb-2 text-secondary-900">
                           Account Number
                         </label>
                         <input
                           type="text"
                           value={settings.payment.bankAccount.accountNumber}
-                          className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none"
-                          style={{ 
-                            borderColor: "var(--light-sage)",
-                            color: "var(--dark-charcoal)"
-                          }}
-                          disabled
+                          onChange={(e) => handleNestedInputChange("payment", "bankAccount", "accountNumber", e.target.value)}
+                          className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: "var(--dark-charcoal)" }}>
-                          Routing Number
+                        <label className="block text-sm font-medium mb-2 text-secondary-900">
+                          IFSC Code
                         </label>
                         <input
                           type="text"
                           value={settings.payment.bankAccount.routingNumber}
-                          className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none"
-                          style={{ 
-                            borderColor: "var(--light-sage)",
-                            color: "var(--dark-charcoal)"
-                          }}
-                          disabled
+                          onChange={(e) => handleNestedInputChange("payment", "bankAccount", "routingNumber", e.target.value)}
+                          className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* PayPal */}
-                  <div className="p-6 rounded-lg border-2" style={{ borderColor: "var(--light-sage)" }}>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: "var(--dark-charcoal)" }}>
+                  {/* UPI */}
+                  <div className="p-6 rounded-lg border-2 border-secondary-200">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center text-secondary-900">
                       <EnvelopeIcon className="h-5 w-5 mr-2" />
-                      PayPal Account
+                      UPI Account
                     </h3>
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <input
-                          type="email"
-                          value={settings.payment.paypal.email}
-                          onChange={(e) => handleNestedInputChange("payment", "paypal", "email", e.target.value)}
-                          className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none"
-                          style={{ 
-                            borderColor: "var(--light-sage)",
-                            color: "var(--dark-charcoal)"
-                          }}
+                          type="text"
+                          value={settings.payment.upi.upiId}
+                          onChange={(e) => handleNestedInputChange("payment", "upi", "upiId", e.target.value)}
+                          placeholder="yourname@upi"
+                          className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
                         />
                       </div>
                       <div className="ml-4">
-                        {settings.payment.paypal.verified ? (
+                        {settings.payment.upi.verified ? (
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                             ✓ Verified
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                            Pending
-                          </span>
+                          <button className="px-4 py-2 rounded-lg font-medium bg-primary-100 text-primary-600">
+                            Verify
+                          </button>
                         )}
                       </div>
                     </div>
@@ -513,14 +716,14 @@ export default function VendorSettings() {
             {/* Notifications Tab */}
             {activeTab === "notifications" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold" style={{ color: "var(--dark-charcoal)" }}>
+                <h2 className="text-2xl font-bold text-secondary-900">
                   Notification Preferences
                 </h2>
 
                 <div className="space-y-8">
                   {/* Email Notifications */}
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: "var(--dark-charcoal)" }}>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center text-secondary-900">
                       <EnvelopeIcon className="h-5 w-5 mr-2" />
                       Email Notifications
                     </h3>
@@ -528,7 +731,7 @@ export default function VendorSettings() {
                       {Object.entries(settings.notifications.emailNotifications).map(([key, value]) => (
                         <label key={key} className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors">
                           <div>
-                            <span className="font-medium" style={{ color: "var(--dark-charcoal)" }}>
+                            <span className="font-medium text-secondary-900">
                               {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                             </span>
                           </div>
@@ -536,8 +739,7 @@ export default function VendorSettings() {
                             type="checkbox"
                             checked={value}
                             onChange={(e) => handleNestedInputChange("notifications", "emailNotifications", key, e.target.checked)}
-                            className="h-5 w-5 rounded"
-                            style={{ accentColor: "var(--medium-gray)" }}
+                            className="h-5 w-5 rounded accent-primary-600"
                           />
                         </label>
                       ))}
@@ -546,7 +748,7 @@ export default function VendorSettings() {
 
                   {/* SMS Notifications */}
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: "var(--dark-charcoal)" }}>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center text-secondary-900">
                       <DevicePhoneMobileIcon className="h-5 w-5 mr-2" />
                       SMS Notifications
                     </h3>
@@ -554,7 +756,7 @@ export default function VendorSettings() {
                       {Object.entries(settings.notifications.smsNotifications).map(([key, value]) => (
                         <label key={key} className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors">
                           <div>
-                            <span className="font-medium" style={{ color: "var(--dark-charcoal)" }}>
+                            <span className="font-medium text-secondary-900">
                               {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                             </span>
                           </div>
@@ -562,8 +764,7 @@ export default function VendorSettings() {
                             type="checkbox"
                             checked={value}
                             onChange={(e) => handleNestedInputChange("notifications", "smsNotifications", key, e.target.checked)}
-                            className="h-5 w-5 rounded"
-                            style={{ accentColor: "var(--medium-gray)" }}
+                            className="h-5 w-5 rounded accent-primary-600"
                           />
                         </label>
                       ))}
@@ -576,33 +777,32 @@ export default function VendorSettings() {
             {/* Security Tab */}
             {activeTab === "security" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold" style={{ color: "var(--dark-charcoal)" }}>
+                <h2 className="text-2xl font-bold text-secondary-900">
                   Security Settings
                 </h2>
 
                 <div className="space-y-6">
                   {/* Password */}
-                  <div className="p-6 rounded-lg border-2" style={{ borderColor: "var(--light-sage)" }}>
-                    <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--dark-charcoal)" }}>
+                  <div className="p-6 rounded-lg border-2 border-secondary-200">
+                    <h3 className="text-lg font-semibold mb-4 text-secondary-900">
                       Password
                     </h3>
-                    <p className="text-sm mb-4" style={{ color: "var(--warm-brown)" }}>
+                    <p className="text-sm mb-4 text-secondary-600">
                       Last changed: {new Date(settings.security.lastPasswordChange).toLocaleDateString()}
                     </p>
-                    <button className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90"
-                            style={{ backgroundColor: "var(--medium-gray)", color: "var(--white)" }}>
+                    <button className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-primary-600 text-white">
                       Change Password
                     </button>
                   </div>
 
                   {/* Two-Factor Authentication */}
-                  <div className="p-6 rounded-lg border-2" style={{ borderColor: "var(--light-sage)" }}>
+                  <div className="p-6 rounded-lg border-2 border-secondary-200">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold" style={{ color: "var(--dark-charcoal)" }}>
+                        <h3 className="text-lg font-semibold text-secondary-900">
                           Two-Factor Authentication
                         </h3>
-                        <p className="text-sm" style={{ color: "var(--warm-brown)" }}>
+                        <p className="text-sm text-secondary-600">
                           Add an extra layer of security to your account
                         </p>
                       </div>
@@ -611,26 +811,24 @@ export default function VendorSettings() {
                           type="checkbox"
                           checked={settings.security.twoFactorEnabled}
                           onChange={(e) => handleInputChange("security", "twoFactorEnabled", e.target.checked)}
-                          className="h-5 w-5 rounded"
-                          style={{ accentColor: "var(--medium-gray)" }}
+                          className="h-5 w-5 rounded accent-primary-600"
                         />
                       </label>
                     </div>
                   </div>
 
                   {/* Active Sessions */}
-                  <div className="p-6 rounded-lg border-2" style={{ borderColor: "var(--light-sage)" }}>
+                  <div className="p-6 rounded-lg border-2 border-secondary-200">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold" style={{ color: "var(--dark-charcoal)" }}>
+                        <h3 className="text-lg font-semibold text-secondary-900">
                           Active Sessions
                         </h3>
-                        <p className="text-sm" style={{ color: "var(--warm-brown)" }}>
+                        <p className="text-sm text-secondary-600">
                           You have {settings.security.loginSessions} active login sessions
                         </p>
                       </div>
-                      <button className="px-4 py-2 rounded-lg font-medium transition-colors hover:opacity-90"
-                              style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}>
+                      <button className="px-4 py-2 rounded-lg font-medium transition-colors hover:opacity-90 bg-red-100 text-red-600">
                         Sign Out All
                       </button>
                     </div>

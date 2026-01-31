@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   PlusIcon,
@@ -8,116 +8,133 @@ import {
   TrashIcon,
   EyeIcon,
   MagnifyingGlassIcon,
-  FunnelIcon
+  FunnelIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from "@heroicons/react/24/outline";
-
-// Mock data
-const mockProducts = [
-  {
-    id: "1",
-    name: "Professional Camera Kit",
-    category: "Electronics",
-    price: 25,
-    priceUnit: "day",
-    status: "active",
-    stock: 3,
-    totalRentals: 45,
-    rating: 4.8,
-    revenue: "$1,125",
-    image: "/api/placeholder/100/100",
-    createdAt: "2024-01-15"
-  },
-  {
-    id: "2", 
-    name: "Power Drill Set",
-    category: "Tools",
-    price: 15,
-    priceUnit: "day",
-    status: "active",
-    stock: 5,
-    totalRentals: 38,
-    rating: 4.6,
-    revenue: "$570",
-    image: "/api/placeholder/100/100",
-    createdAt: "2024-01-10"
-  },
-  {
-    id: "3",
-    name: "Party Sound System",
-    category: "Party Supplies", 
-    price: 50,
-    priceUnit: "day",
-    status: "active",
-    stock: 2,
-    totalRentals: 32,
-    rating: 4.9,
-    revenue: "$1,600",
-    image: "/api/placeholder/100/100",
-    createdAt: "2024-01-08"
-  },
-  {
-    id: "4",
-    name: "Mountain Bike",
-    category: "Sports",
-    price: 30,
-    priceUnit: "day", 
-    status: "inactive",
-    stock: 1,
-    totalRentals: 28,
-    rating: 4.7,
-    revenue: "$840",
-    image: "/api/placeholder/100/100",
-    createdAt: "2024-01-05"
-  },
-  {
-    id: "5",
-    name: "Projector & Screen",
-    category: "Electronics",
-    price: 40,
-    priceUnit: "day",
-    status: "active",
-    stock: 2,
-    totalRentals: 22,
-    rating: 4.5,
-    revenue: "$880",
-    image: "/api/placeholder/100/100",
-    createdAt: "2024-01-03"
-  }
-];
+import { productService } from "@/app/lib/services/products";
+import type { Product } from "@/types/api";
+import { useAuth } from "@/contexts/AuthContext";
+import AddProductModal from "@/components/vendor/AddProductModal";
 
 const categories = ["All", "Electronics", "Tools", "Party Supplies", "Sports"];
-const statusOptions = ["All", "Active", "Inactive"];
+const statusOptions = ["All", "Published", "Unpublished"];
 
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case "active":
-      return { bg: "#dcfce7", text: "#16a34a" };
-    case "inactive":
-      return { bg: "#fee2e2", text: "#dc2626" };
-    default:
-      return { bg: "#f0f9ff", text: "#1e40af" };
-  }
+const getStatusColor = (published: boolean) => {
+  return published
+    ? { bg: "#dcfce7", text: "#16a34a" }
+    : { bg: "#fee2e2", text: "#dc2626" };
 };
 
 export default function VendorProducts() {
+  const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
+  const [publishingProducts, setPublishingProducts] = useState<Set<string>>(new Set());
+  const [showAddModal, setShowAddModal] = useState(false);
 
-  const filteredProducts = mockProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-    const matchesStatus = selectedStatus === "All" || product.status.toLowerCase() === selectedStatus.toLowerCase();
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  useEffect(() => {
+    fetchProducts();
+  }, [user]);
 
-  const handleDeleteProduct = (productId: string) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      // In a real app, this would make an API call
-      console.log("Deleting product:", productId);
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get vendorProfile ID from user
+      const vendorProfileId = user?.vendorProfile?.id;
+
+      if (!vendorProfileId) {
+        setError('Vendor profile not found');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch ALL products for this vendor (including unpublished)
+      const response = await productService.getAll({
+        vendorId: vendorProfileId,
+        published: false, // Include unpublished products
+      });
+      setProducts(response.products);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setError('Failed to load products');
+    } finally {
+      setLoading(false);
     }
   };
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === "All" ||
+      (selectedStatus === "Published" && product.published) ||
+      (selectedStatus === "Unpublished" && !product.published);
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (confirm("Are you sure you want to delete this product?")) {
+      try {
+        await productService.delete(productId);
+        setProducts(products.filter(p => p.id !== productId));
+      } catch (err) {
+        console.error('Failed to delete product:', err);
+        alert('Failed to delete product');
+      }
+    }
+  };
+
+  const handleTogglePublish = async (productId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    try {
+      setPublishingProducts(prev => new Set(prev).add(productId));
+      const response = await productService.togglePublish(productId, newStatus);
+      if (response.success && response.product) {
+        setProducts(products.map(p => 
+          p.id === productId ? response.product : p
+        ));
+      }
+    } catch (err) {
+      console.error('Failed to toggle publish:', err);
+      alert('Failed to update product status');
+    } finally {
+      setPublishingProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={fetchProducts}
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -131,13 +148,13 @@ export default function VendorProducts() {
             Manage your rental inventory
           </p>
         </div>
-        <Link
-          href="/vendor/products/new"
+        <button
+          onClick={() => setShowAddModal(true)}
           className="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 rounded-xl font-semibold text-white transition-all hover:shadow-lg transform hover:scale-105 bg-gradient-to-r from-primary-600 to-primary-700"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Add Product
-        </Link>
+        </button>
       </div>
 
       {/* Search and Filters */}
@@ -215,7 +232,11 @@ export default function VendorProducts() {
       {/* Products Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredProducts.map((product) => {
-          const statusColor = getStatusColor(product.status);
+          const statusColor = getStatusColor(product.published);
+          const defaultPrice = product.pricing?.[0]?.price || 0;
+          const defaultPeriod = product.pricing?.[0]?.rentalPeriod?.name || 'day';
+          const stock = product.inventory?.quantityOnHand || 0;
+
           return (
             <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
               {/* Product Image */}
@@ -225,11 +246,14 @@ export default function VendorProducts() {
                     className="px-3 py-1 rounded-full text-xs font-bold"
                     style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
                   >
-                    {product.status}
+                    {product.published ? 'Published' : 'Unpublished'}
                   </span>
                 </div>
                 <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                  Stock: {product.stock}
+                  Stock: {stock}
+                </div>
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-secondary-100">
+                  <span className="text-4xl">📦</span>
                 </div>
               </div>
 
@@ -241,44 +265,48 @@ export default function VendorProducts() {
                       {product.name}
                     </h3>
                     <p className="text-sm text-secondary-600">
-                      {product.category}
+                      {product.productType}
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-lg text-primary-600">
-                      ${product.price}
+                      ₹{defaultPrice}
                     </div>
                     <div className="text-sm text-secondary-600">
-                      per {product.priceUnit}
+                      per {defaultPeriod}
                     </div>
                   </div>
                 </div>
+
+                {/* Description */}
+                <p className="text-sm text-secondary-600 mb-4 line-clamp-2">
+                  {product.description || 'No description available'}
+                </p>
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 mb-4 text-center">
                   <div>
                     <div className="font-bold text-secondary-900">
-                      {product.totalRentals}
+                      {product.pricing?.length || 0}
                     </div>
                     <div className="text-xs text-secondary-600">
-                      Rentals
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-bold flex items-center justify-center text-secondary-900">
-                      <span className="text-yellow-400 mr-1">★</span>
-                      {product.rating}
-                    </div>
-                    <div className="text-xs text-secondary-600">
-                      Rating
+                      Pricing Tiers
                     </div>
                   </div>
                   <div>
                     <div className="font-bold text-secondary-900">
-                      {product.revenue}
+                      {product.variants?.length || 0}
                     </div>
                     <div className="text-xs text-secondary-600">
-                      Revenue
+                      Variants
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-secondary-900">
+                      {stock}
+                    </div>
+                    <div className="text-xs text-secondary-600">
+                      In Stock
                     </div>
                   </div>
                 </div>
@@ -286,6 +314,24 @@ export default function VendorProducts() {
                 {/* Actions */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleTogglePublish(product.id, product.published)}
+                      disabled={publishingProducts.has(product.id)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        product.published
+                          ? 'hover:bg-amber-100 text-amber-600'
+                          : 'hover:bg-green-100 text-green-600'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title={product.published ? 'Unpublish' : 'Publish'}
+                    >
+                      {publishingProducts.has(product.id) ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                      ) : product.published ? (
+                        <XCircleIcon className="h-5 w-5" />
+                      ) : (
+                        <CheckCircleIcon className="h-5 w-5" />
+                      )}
+                    </button>
                     <Link
                       href={`/vendor/products/${product.id}`}
                       className="p-2 rounded-lg hover:bg-secondary-100 transition-colors text-primary-600"
@@ -339,6 +385,13 @@ export default function VendorProducts() {
           </button>
         </div>
       )}
+
+      {/* Add Product Modal */}
+      <AddProductModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={fetchProducts}
+      />
     </div>
   );
 }

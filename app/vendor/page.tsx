@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CubeIcon,
@@ -15,7 +15,44 @@ import {
   PlusIcon,
   ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
-import { generateInvoicePDF, generateSampleInvoiceData } from "../../lib/invoiceGenerator";
+import { generateInvoicePDF, buildInvoiceData } from "../../lib/invoiceGenerator";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/app/lib/api-client";
+
+// Types for API responses
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  customer: {
+    user: {
+      firstName: string;
+      lastName: string;
+    };
+  };
+  lines: {
+    product: {
+      name: string;
+    };
+    quantity: number;
+  }[];
+}
+
+interface Product {
+  id: string;
+  name: string;
+  published: boolean;
+  inventory?: {
+    quantityOnHand: number;
+  };
+  pricing: {
+    price: number;
+  }[];
+}
 
 // Product Creation Modal Component
 const ProductCreationModal = ({ isOpen, onClose }: {
@@ -64,10 +101,10 @@ const ProductCreationModal = ({ isOpen, onClose }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // Reset form and close modal
     setFormData({
       name: '',
@@ -82,7 +119,7 @@ const ProductCreationModal = ({ isOpen, onClose }: {
     });
     setIsSubmitting(false);
     onClose();
-    
+
     // Show success message (you can implement toast notification here)
     alert('Product added successfully!');
   };
@@ -262,7 +299,7 @@ const ProductCreationModal = ({ isOpen, onClose }: {
                 <PhotoIcon className="h-8 w-8 text-[#715A5A] mb-2" />
                 <span className="text-sm text-[#715A5A]">Click to upload images</span>
               </label>
-              
+
               {/* Image Preview */}
               {formData.images.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -320,192 +357,210 @@ const ProductCreationModal = ({ isOpen, onClose }: {
   );
 };
 
-// Mock data
-const dashboardStats = [
-  {
-    title: "Total Products",
-    value: "24",
-    change: "+3",
-    changeType: "increase",
-    icon: CubeIcon,
-    href: "/vendor/products"
-  },
-  {
-    title: "Active Orders",
-    value: "18",
-    change: "+5",
-    changeType: "increase", 
-    icon: ClipboardDocumentListIcon,
-    href: "/vendor/orders"
-  },
-  {
-    title: "Monthly Earnings",
-    value: "₹3,240",
-    change: "+12%",
-    changeType: "increase",
-    icon: CurrencyDollarIcon,
-    href: "/vendor/earnings"
-  },
-  {
-    title: "Pending Pickups",
-    value: "7",
-    change: "-2",
-    changeType: "decrease",
-    icon: TruckIcon,
-    href: "/vendor/logistics"
-  }
-];
-
-const recentOrders = [
-  {
-    id: "ORD-001",
-    customer: "John Smith",
-    product: "Professional Camera Kit",
-    amount: "₹150",
-    status: "confirmed",
-    date: "2024-01-30",
-    duration: "3 days"
-  },
-  {
-    id: "ORD-002", 
-    customer: "Sarah Johnson",
-    product: "Power Drill Set",
-    amount: "₹45",
-    status: "in-progress",
-    date: "2024-01-29",
-    duration: "1 day"
-  },
-  {
-    id: "ORD-003",
-    customer: "Mike Wilson",
-    product: "Party Sound System", 
-    amount: "₹200",
-    status: "completed",
-    date: "2024-01-28",
-    duration: "2 days"
-  },
-  {
-    id: "ORD-004",
-    customer: "Emily Davis",
-    product: "Mountain Bike",
-    amount: "₹90",
-    status: "pending",
-    date: "2024-01-27",
-    duration: "3 days"
-  }
-];
-
-const topProducts = [
-  {
-    name: "Professional Camera Kit",
-    rentals: 45,
-    revenue: "₹1,125",
-    rating: 4.8
-  },
-  {
-    name: "Power Drill Set", 
-    rentals: 38,
-    revenue: "₹570",
-    rating: 4.6
-  },
-  {
-    name: "Party Sound System",
-    rentals: 32,
-    revenue: "₹1,600",
-    rating: 4.9
-  },
-  {
-    name: "Mountain Bike",
-    rentals: 28,
-    revenue: "₹840",
-    rating: 4.7
-  }
-];
-
+// Helper to get status color based on order status from API
 const getStatusColor = (status: string) => {
-  switch (status) {
-    case "confirmed":
+  switch (status.toUpperCase()) {
+    case "CONFIRMED":
       return { bg: "#dcfce7", text: "#16a34a" };
-    case "in-progress":
+    case "PICKED_UP":
       return { bg: "#fef3c7", text: "#d97706" };
-    case "completed":
+    case "RETURNED":
       return { bg: "#dbeafe", text: "#2563eb" };
-    case "pending":
+    case "QUOTATION":
+    case "SENT":
       return { bg: "#fee2e2", text: "#dc2626" };
+    case "INVOICED":
+      return { bg: "#e0e7ff", text: "#4f46e5" };
+    case "CANCELLED":
+      return { bg: "#fecaca", text: "#b91c1c" };
     default:
       return { bg: "#f0f9ff", text: "#1e40af" };
   }
 };
 
+// Calculate days between two dates
+const calculateDays = (startDate: string, endDate: string): string => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+};
+
 export default function VendorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const { user } = useAuth();
 
-  const handleDownloadInvoice = (orderId: string) => {
-    try {
-      // Generate sample invoice data (in real app, this would come from API)
-      const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
-      
-      // Find the actual order from recentOrders to get real data
-      const actualOrder = recentOrders.find(order => order.id === orderId);
-      if (actualOrder) {
-        // Update the sample data with actual order data
-        invoiceData.id = `INV-${orderId}`;
-        invoiceData.orderId = actualOrder.id;
-        invoiceData.product = actualOrder.product;
-        invoiceData.amount = parseInt(actualOrder.amount.replace('₹', ''));
-        invoiceData.total = invoiceData.amount + (invoiceData.amount * 0.18) + 25; // Add tax and service fee
-        invoiceData.status = actualOrder.status === 'completed' ? 'paid' : 'pending';
-        invoiceData.rentalPeriod = `${actualOrder.duration}`;
-        
-        // Update customer info
-        invoiceData.customerInfo.name = actualOrder.customer;
-        invoiceData.customerInfo.email = 'customer@email.com';
-        invoiceData.customerInfo.phone = '+91 98765 43210';
-        invoiceData.customerInfo.address = '123, Customer Address, City, State - 560001';
+  // Fetch vendor data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.vendorProfile?.id) return;
+
+      try {
+        setLoading(true);
+
+        // Fetch orders and products in parallel
+        const [ordersRes, productsRes] = await Promise.all([
+          api.get<{ success: boolean; orders: Order[] }>('/orders'),
+          api.get<{ success: boolean; products: Product[] }>('/products', {
+            vendorId: user.vendorProfile.id,
+            published: 'false' // Get all products, not just published
+          })
+        ]);
+
+        if (ordersRes.success) {
+          setOrders(ordersRes.orders || []);
+        }
+        if (productsRes.success) {
+          setProducts(productsRes.products || []);
+        }
+      } catch (error) {
+        console.error('Error fetching vendor data:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      // Generate and download PDF
-      generateInvoicePDF(invoiceData);
-      
-      // Show success message
+    };
+
+    fetchData();
+  }, [user?.vendorProfile?.id]);
+
+  // Compute dashboard stats from real data
+  const dashboardStats = [
+    {
+      title: "Total Products",
+      value: String(products.length),
+      change: products.length > 0 ? `${products.length} items` : "0",
+      changeType: "increase" as const,
+      icon: CubeIcon,
+      href: "/vendor/products"
+    },
+    {
+      title: "Active Orders",
+      value: String(orders.filter(o => ['CONFIRMED', 'SENT', 'PICKED_UP'].includes(o.status)).length),
+      change: `${orders.filter(o => ['QUOTATION'].includes(o.status)).length} pending`,
+      changeType: "increase" as const,
+      icon: ClipboardDocumentListIcon,
+      href: "/vendor/orders"
+    },
+    {
+      title: "Monthly Earnings",
+      value: `₹${orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0).toLocaleString()}`,
+      change: "Total",
+      changeType: "increase" as const,
+      icon: CurrencyDollarIcon,
+      href: "/vendor/earnings"
+    },
+    {
+      title: "Pending Pickups",
+      value: String(orders.filter(o => o.status === 'CONFIRMED').length),
+      change: `${orders.filter(o => o.status === 'PICKED_UP').length} in progress`,
+      changeType: orders.filter(o => o.status === 'CONFIRMED').length > 0 ? "decrease" as const : "increase" as const,
+      icon: TruckIcon,
+      href: "/vendor/logistics"
+    }
+  ];
+
+  // Transform orders for display
+  const recentOrders = orders.slice(0, 5).map(order => ({
+    id: order.orderNumber,
+    orderId: order.id,
+    customer: order.customer?.user ? `${order.customer.user.firstName} ${order.customer.user.lastName}` : 'Unknown',
+    product: order.lines?.[0]?.product?.name || 'N/A',
+    amount: `₹${order.totalAmount?.toLocaleString() || 0}`,
+    status: order.status,
+    date: new Date(order.createdAt).toLocaleDateString(),
+    duration: order.startDate && order.endDate ? calculateDays(order.startDate, order.endDate) : 'N/A'
+  }));
+
+  // Transform products for display (sorted by name for now - can enhance with order count later)
+  const topProducts = products.slice(0, 4).map(product => ({
+    name: product.name,
+    rentals: orders.filter(o => o.lines?.some(l => l.product?.name === product.name)).length,
+    revenue: `₹${(product.pricing?.[0]?.price || 0).toLocaleString()}`,
+    rating: 4.5 // Placeholder - would need real rating data
+  }));
+
+  const handleDownloadInvoice = async (orderId: string) => {
+    try {
+      // Find the actual order from orders array
+      const actualOrder = orders.find(o => o.id === orderId);
+      if (!actualOrder) {
+        throw new Error('Order not found');
+      }
+
+      const customerName = actualOrder.customer?.user ?
+        `${actualOrder.customer.user.firstName} ${actualOrder.customer.user.lastName}` : 'Customer';
+      const tax = actualOrder.totalAmount * 0.18;
+
+      const invoiceData = buildInvoiceData({
+        invoiceNumber: `INV-${actualOrder.orderNumber}`,
+        orderNumber: actualOrder.orderNumber,
+        status: actualOrder.status === 'RETURNED' ? 'paid' : 'pending',
+        invoiceDate: actualOrder.createdAt,
+        totalAmount: actualOrder.totalAmount + tax,
+        subtotal: actualOrder.totalAmount,
+        taxAmount: tax,
+        startDate: actualOrder.startDate,
+        endDate: actualOrder.endDate,
+        customer: {
+          name: customerName,
+          email: 'customer@email.com'
+        },
+        vendor: {
+          name: user?.vendorProfile?.companyName || 'Vendor',
+          gstin: user?.vendorProfile?.gstin,
+          logoUrl: user?.vendorProfile?.logoUrl
+        },
+        lines: actualOrder.lines?.map(line => ({
+          name: line.product?.name || 'Item',
+          quantity: line.quantity,
+          unitPrice: actualOrder.totalAmount / (actualOrder.lines?.reduce((sum, l) => sum + l.quantity, 0) || 1),
+          amount: actualOrder.totalAmount / (actualOrder.lines?.length || 1)
+        })) || []
+      });
+
+      await generateInvoicePDF(invoiceData);
+
       const successMessage = document.createElement('div');
       successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      successMessage.textContent = `Invoice for ${orderId} downloaded successfully!`;
+      successMessage.textContent = `Invoice for ${actualOrder.orderNumber} downloaded successfully!`;
       document.body.appendChild(successMessage);
-      
-      // Remove success message after 3 seconds
-      setTimeout(() => {
-        document.body.removeChild(successMessage);
-      }, 3000);
-      
+      setTimeout(() => document.body.removeChild(successMessage), 3000);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      
-      // Show error message
       const errorMessage = document.createElement('div');
       errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
       errorMessage.textContent = 'Error generating PDF. Please try again.';
       document.body.appendChild(errorMessage);
-      
-      // Remove error message after 3 seconds
-      setTimeout(() => {
-        document.body.removeChild(errorMessage);
-      }, 3000);
+      setTimeout(() => document.body.removeChild(errorMessage), 3000);
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-lg bg-gray-200"></div>
+                <div className="w-16 h-4 bg-gray-200 rounded"></div>
+              </div>
+              <div className="w-20 h-8 bg-gray-200 rounded mb-2"></div>
+              <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      {/* Welcome Section */}
-      {/* <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl shadow-xl p-8">
-        <div className="text-center text-white">
-          <h1 className="text-4xl font-bold mb-2">Welcome to Your Dashboard</h1>
-          <p className="text-lg opacity-90">
-            Manage your rental business efficiently
-          </p>
-        </div>
-      </div> */}
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {dashboardStats.map((stat) => {
@@ -520,9 +575,8 @@ export default function VendorDashboard() {
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-primary-100">
                   <Icon className="h-6 w-6 text-primary-600" />
                 </div>
-                <div className={`flex items-center text-sm font-medium ${
-                  stat.changeType === "increase" ? "text-green-600" : "text-red-600"
-                }`}>
+                <div className={`flex items-center text-sm font-medium ${stat.changeType === "increase" ? "text-green-600" : "text-red-600"
+                  }`}>
                   {stat.changeType === "increase" ? (
                     <ArrowUpIcon className="h-4 w-4 mr-1" />
                   ) : (
@@ -559,47 +613,53 @@ export default function VendorDashboard() {
             </div>
           </div>
           <div className="divide-y divide-secondary-200">
-            {recentOrders.map((order) => {
-              const statusColor = getStatusColor(order.status);
-              return (
-                <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <span className="font-bold text-sm text-secondary-900">
-                        {order.id}
-                      </span>
-                      <span
-                        className="ml-3 px-2 py-1 rounded-full text-xs font-medium"
-                        style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-primary-600">
-                        {order.amount}
-                      </span>
-                      {(order.status === 'completed' || order.status === 'confirmed') && (
-                        <button
-                          onClick={() => handleDownloadInvoice(order.id)}
-                          className="p-1 rounded hover:bg-gray-100 transition-colors text-primary-600"
-                          title="Download Invoice"
+            {recentOrders.length === 0 ? (
+              <div className="p-6 text-center text-secondary-600">
+                No orders yet. Your orders will appear here.
+              </div>
+            ) : (
+              recentOrders.map((order) => {
+                const statusColor = getStatusColor(order.status);
+                return (
+                  <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <span className="font-bold text-sm text-secondary-900">
+                          {order.id}
+                        </span>
+                        <span
+                          className="ml-3 px-2 py-1 rounded-full text-xs font-medium"
+                          style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
                         >
-                          <ArrowDownTrayIcon className="h-4 w-4" />
-                        </button>
-                      )}
+                          {order.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-bold text-primary-600">
+                          {order.amount}
+                        </span>
+                        {['RETURNED', 'CONFIRMED', 'INVOICED'].includes(order.status) && (
+                          <button
+                            onClick={() => handleDownloadInvoice(order.id)}
+                            className="p-1 rounded hover:bg-gray-100 transition-colors text-primary-600"
+                            title="Download Invoice"
+                          >
+                            <ArrowDownTrayIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <h4 className="font-medium mb-1 text-secondary-900">
+                      {order.product}
+                    </h4>
+                    <div className="flex items-center justify-between text-sm text-secondary-600">
+                      <span>{order.customer}</span>
+                      <span>{order.duration}</span>
                     </div>
                   </div>
-                  <h4 className="font-medium mb-1 text-secondary-900">
-                    {order.product}
-                  </h4>
-                  <div className="flex items-center justify-between text-sm text-secondary-600">
-                    <span>{order.customer}</span>
-                    <span>{order.duration}</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -608,7 +668,7 @@ export default function VendorDashboard() {
           <div className="p-6 border-b border-secondary-200">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-secondary-900">
-                Top Performing Products
+                Your Products
               </h2>
               <Link
                 href="/vendor/analytics"
@@ -619,30 +679,36 @@ export default function VendorDashboard() {
             </div>
           </div>
           <div className="divide-y divide-secondary-200">
-            {topProducts.map((product, index) => (
-              <div key={product.name} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3 bg-primary-100 text-primary-600">
-                      {index + 1}
-                    </div>
-                    <h4 className="font-medium text-secondary-900">
-                      {product.name}
-                    </h4>
-                  </div>
-                  <span className="font-bold text-primary-600">
-                    {product.revenue}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-secondary-600">
-                  <span>{product.rentals} rentals</span>
-                  <div className="flex items-center">
-                    <span className="text-yellow-400 mr-1">★</span>
-                    <span>{product.rating}</span>
-                  </div>
-                </div>
+            {topProducts.length === 0 ? (
+              <div className="p-6 text-center text-secondary-600">
+                No products yet. Add your first product to get started.
               </div>
-            ))}
+            ) : (
+              topProducts.map((product, index) => (
+                <div key={product.name} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3 bg-primary-100 text-primary-600">
+                        {index + 1}
+                      </div>
+                      <h4 className="font-medium text-secondary-900">
+                        {product.name}
+                      </h4>
+                    </div>
+                    <span className="font-bold text-primary-600">
+                      {product.revenue}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-secondary-600">
+                    <span>{product.rentals} rentals</span>
+                    <div className="flex items-center">
+                      <span className="text-yellow-400 mr-1">★</span>
+                      <span>{product.rating}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

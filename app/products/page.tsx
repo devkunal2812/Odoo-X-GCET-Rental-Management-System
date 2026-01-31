@@ -1,129 +1,20 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../components/Header";
 import {
   MagnifyingGlassIcon,
-  StarIcon,
-  HeartIcon,
   ShoppingCartIcon,
-  MapPinIcon,
-  AdjustmentsHorizontalIcon,
   CheckIcon
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { addToCart, isProductInCart } from "../../lib/cart";
-
-// Mock data with more realistic products
-const mockProducts = [
-  {
-    id: 1,
-    name: "Professional DSLR Camera Kit",
-    description: "Complete photography setup with multiple lenses and accessories",
-    price: 45,
-    period: "day",
-    rating: 4.9,
-    reviews: 127,
-    image: "/api/placeholder/400/300",
-    vendor: "TechRent Pro",
-    location: "Downtown",
-    category: "Electronics",
-    availability: "Available",
-    features: ["4K Video", "Multiple Lenses", "Tripod Included"],
-    isWishlisted: false,
-    createdAt: "2024-01-15"
-  },
-  {
-    id: 2,
-    name: "Power Drill Set Professional",
-    description: "Heavy-duty cordless drill with complete bit set and carrying case",
-    price: 25,
-    period: "day",
-    rating: 4.8,
-    reviews: 89,
-    image: "/api/placeholder/400/300",
-    vendor: "ToolMaster",
-    location: "North Side",
-    category: "Tools",
-    availability: "Available",
-    features: ["Cordless", "Multiple Bits", "Carrying Case"],
-    isWishlisted: true,
-    createdAt: "2024-01-20"
-  },
-  {
-    id: 3,
-    name: "Party Sound System",
-    description: "Professional PA system perfect for events and parties",
-    price: 75,
-    period: "day",
-    rating: 4.7,
-    reviews: 156,
-    image: "/api/placeholder/400/300",
-    vendor: "EventPro",
-    location: "City Center",
-    category: "Party Supplies",
-    availability: "Available",
-    features: ["Wireless Mics", "Bluetooth", "Easy Setup"],
-    isWishlisted: false,
-    createdAt: "2024-01-10"
-  },
-  {
-    id: 4,
-    name: "Mountain Bike - Trek",
-    description: "High-performance mountain bike for trails and adventures",
-    price: 35,
-    period: "day",
-    rating: 4.6,
-    reviews: 203,
-    image: "/api/placeholder/400/300",
-    vendor: "BikeRentals",
-    location: "South Park",
-    category: "Sports",
-    availability: "Rented",
-    features: ["21 Speed", "Suspension", "Helmet Included"],
-    isWishlisted: false,
-    createdAt: "2024-01-25"
-  },
-  {
-    id: 5,
-    name: "Electric Scooter",
-    description: "Eco-friendly electric scooter for city commuting",
-    price: 20,
-    period: "day",
-    rating: 4.5,
-    reviews: 94,
-    image: "/api/placeholder/400/300",
-    vendor: "UrbanRide",
-    location: "Downtown",
-    category: "Vehicles",
-    availability: "Available",
-    features: ["25km Range", "Fast Charging", "App Control"],
-    isWishlisted: false,
-    createdAt: "2024-01-30"
-  },
-  {
-    id: 6,
-    name: "Projector & Screen Combo",
-    description: "4K projector with portable screen for presentations",
-    price: 55,
-    period: "day",
-    rating: 4.8,
-    reviews: 78,
-    image: "/api/placeholder/400/300",
-    vendor: "TechRent Pro",
-    location: "Business District",
-    category: "Electronics",
-    availability: "Available",
-    features: ["4K Resolution", "Portable Screen", "HDMI Cables"],
-    isWishlisted: false,
-    createdAt: "2024-01-05"
-  }
-];
+import { productService } from "@/app/lib/services/products";
+import type { Product } from "@/types/api";
 
 const categories = ["All", "Electronics", "Tools", "Party Supplies", "Sports", "Vehicles"];
-const sortOptions = ["Featured", "Price: Low to High", "Price: High to Low", "Rating", "Newest"];
+const sortOptions = ["Featured", "Price: Low to High", "Price: High to Low", "Newest"];
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -144,14 +35,47 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("Featured");
   const [showFilters, setShowFilters] = useState(false);
-  const [products, setProducts] = useState(mockProducts);
-  const [addedToCart, setAddedToCart] = useState<number | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [addedToCart, setAddedToCart] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await productService.getAll({
+          published: true,
+          page: currentPage,
+          limit: 20,
+        });
+        
+        setProducts(response.products);
+        
+        if (response.pagination) {
+          setTotalPages(response.pagination.pages);
+        }
+      } catch (err) {
+        setError('Failed to load products. Please try again.');
+        console.error('Error fetching products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, [currentPage]);
 
   // Update cart items when component mounts and when cart changes
-  React.useEffect(() => {
+  useEffect(() => {
     const updateCartItems = () => {
-      const items = products.map(product => product.id.toString()).filter(id => isProductInCart(id));
+      const items = products.map(product => product.id).filter(id => isProductInCart(id));
       setCartItems(items);
     };
 
@@ -168,21 +92,25 @@ export default function ProductsPage() {
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+                           (product.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      return matchesSearch;
     });
 
     // Sort products based on selected option
     switch (sortBy) {
       case "Price: Low to High":
-        filtered = filtered.sort((a, b) => a.price - b.price);
+        filtered = filtered.sort((a, b) => {
+          const priceA = a.pricing?.[0]?.price || 0;
+          const priceB = b.pricing?.[0]?.price || 0;
+          return priceA - priceB;
+        });
         break;
       case "Price: High to Low":
-        filtered = filtered.sort((a, b) => b.price - a.price);
-        break;
-      case "Rating":
-        filtered = filtered.sort((a, b) => b.rating - a.rating);
+        filtered = filtered.sort((a, b) => {
+          const priceA = a.pricing?.[0]?.price || 0;
+          const priceB = b.pricing?.[0]?.price || 0;
+          return priceB - priceA;
+        });
         break;
       case "Newest":
         filtered = filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -194,31 +122,28 @@ export default function ProductsPage() {
     }
 
     return filtered;
-  }, [products, searchTerm, selectedCategory, sortBy]);
+  }, [products, searchTerm, sortBy]);
 
-  const toggleWishlist = (productId: number) => {
-    setProducts(products.map(product => 
-      product.id === productId 
-        ? { ...product, isWishlisted: !product.isWishlisted }
-        : product
-    ));
-  };
 
-  const handleAddToCart = (product: typeof mockProducts[0]) => {
-    if (product.availability !== 'Available' || cartItems.includes(product.id.toString())) return;
+
+  const handleAddToCart = (product: Product) => {
+    if (cartItems.includes(product.id)) return;
+
+    const defaultPrice = product.pricing?.[0]?.price || 0;
+    const defaultPeriod = product.pricing?.[0]?.rentalPeriod?.name || 'day';
 
     const cartItem = {
-      productId: product.id.toString(),
+      productId: product.id,
       product: {
-        id: product.id.toString(),
+        id: product.id,
         name: product.name,
-        image: product.image,
-        vendor: product.vendor
+        image: '/api/placeholder/400/300',
+        vendor: product.vendor?.companyName || 'Unknown Vendor'
       },
       quantity: 1,
       rentalDuration: 1,
-      rentalUnit: product.period as 'hour' | 'day' | 'week',
-      unitPrice: product.price,
+      rentalUnit: defaultPeriod.toLowerCase() as 'hour' | 'day' | 'week',
+      unitPrice: defaultPrice,
       selectedAttributes: {}
     };
 
@@ -228,6 +153,17 @@ export default function ProductsPage() {
     setAddedToCart(product.id);
     setTimeout(() => setAddedToCart(null), 2000);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-primary-50">
+        <Header currentPage="products" />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 to-primary-50">
@@ -273,18 +209,8 @@ export default function ProductsPage() {
               />
             </div>
 
-            {/* Category Filter */}
+            {/* Sort */}
             <div className="flex items-center space-x-4">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-secondary-50 hover:bg-white transition-colors text-secondary-900"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category} className="text-secondary-900 bg-white">{category}</option>
-                ))}
-              </select>
-
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -294,13 +220,6 @@ export default function ProductsPage() {
                   <option key={option} value={option} className="text-secondary-900 bg-white">{option}</option>
                 ))}
               </select>
-
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="lg:hidden p-3 border border-secondary-200 rounded-xl hover:bg-secondary-50 transition-colors"
-              >
-                <AdjustmentsHorizontalIcon className="h-5 w-5 text-secondary-600" />
-              </button>
             </div>
           </div>
 
@@ -313,6 +232,12 @@ export default function ProductsPage() {
           </div>
         </motion.div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
         {/* Products Grid */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
@@ -321,160 +246,119 @@ export default function ProductsPage() {
           animate="animate"
         >
           <AnimatePresence>
-            {filteredAndSortedProducts.map((product) => (
-              <motion.div
-                key={product.id}
-                variants={fadeInUp}
-                layout
-                whileHover={{ y: -8 }}
-                className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500"
-              >
-                {/* Product Image */}
-                <div className="relative overflow-hidden">
-                  <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-secondary-200 to-secondary-300">
-                    <div className="w-full h-48 bg-gradient-to-br from-primary-100 to-secondary-100 flex items-center justify-center">
-                      <span className="text-4xl">📷</span>
-                    </div>
-                  </div>
-                  
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300">
-                    <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <motion.button
-                        onClick={() => toggleWishlist(product.id)}
-                        className="p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        {product.isWishlisted ? (
-                          <HeartSolidIcon className="h-5 w-5 text-red-500" />
-                        ) : (
-                          <HeartIcon className="h-5 w-5 text-secondary-600" />
-                        )}
-                      </motion.button>
-                    </div>
-                  </div>
+            {filteredAndSortedProducts.map((product) => {
+              const defaultPrice = product.pricing?.[0]?.price || 0;
+              const defaultPeriod = product.pricing?.[0]?.rentalPeriod?.name || 'day';
+              const vendorName = product.vendor?.companyName || 'Unknown Vendor';
+              const isAvailable = (product.inventory?.quantityOnHand || 0) > 0;
 
-                  {/* Availability Badge */}
-                  <div className="absolute top-4 left-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      product.availability === 'Available' 
-                        ? 'bg-success-100 text-success-800' 
-                        : 'bg-error-100 text-error-800'
-                    }`}>
-                      {product.availability}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Product Info */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-xl font-bold text-secondary-900 group-hover:text-primary-600 transition-colors">
-                      {product.name}
-                    </h3>
-                  </div>
-
-                  <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
-                    {product.description}
-                  </p>
-
-                  {/* Features */}
-                  <div className="flex flex-wrap gap-1 mb-4">
-                    {product.features.slice(0, 2).map((feature, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 bg-primary-50 text-primary-700 text-xs rounded-lg"
-                      >
-                        {feature}
-                      </span>
-                    ))}
-                    {product.features.length > 2 && (
-                      <span className="px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-lg">
-                        +{product.features.length - 2} more
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Rating and Location */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-1">
-                      <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                      <span className="text-sm font-medium text-secondary-900">{product.rating}</span>
-                      <span className="text-sm text-secondary-500">({product.reviews})</span>
-                    </div>
-                    <div className="flex items-center text-sm text-secondary-500">
-                      <MapPinIcon className="h-4 w-4 mr-1" />
-                      {product.location}
-                    </div>
-                  </div>
-
-                  {/* Vendor */}
-                  <div className="flex items-center mb-4">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-white text-sm font-bold">
-                        {product.vendor.charAt(0)}
-                      </span>
-                    </div>
-                    <span className="text-sm text-secondary-600">{product.vendor}</span>
-                  </div>
-
-                  {/* Price and Actions */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-2xl font-bold text-secondary-900">₹{product.price}</span>
-                      <span className="text-secondary-500">/{product.period}</span>
+              return (
+                <motion.div
+                  key={product.id}
+                  variants={fadeInUp}
+                  layout
+                  whileHover={{ y: -8 }}
+                  className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500"
+                >
+                  {/* Product Image */}
+                  <div className="relative overflow-hidden">
+                    <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-secondary-200 to-secondary-300">
+                      <div className="w-full h-48 bg-gradient-to-br from-primary-100 to-secondary-100 flex items-center justify-center">
+                        <span className="text-4xl">📦</span>
+                      </div>
                     </div>
                     
-                    <div className="flex space-x-2">
-                      <Link
-                        href={`/products/${product.id}`}
-                        className="px-4 py-2 bg-secondary-100 text-secondary-900 rounded-lg hover:bg-secondary-200 transition-colors font-medium"
-                      >
-                        View
-                      </Link>
-                      <motion.button
-                        onClick={() => handleAddToCart(product)}
-                        disabled={product.availability !== 'Available'}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${
-                          product.availability === 'Available'
-                            ? cartItems.includes(product.id.toString())
-                              ? 'bg-success-600 text-white cursor-default'
-                              : addedToCart === product.id
-                                ? 'bg-success-600 text-white'
-                                : 'bg-primary-600 text-white hover:bg-primary-700'
-                            : 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
-                        }`}
-                        whileHover={product.availability === 'Available' && !cartItems.includes(product.id.toString()) ? { scale: 1.05 } : {}}
-                        whileTap={product.availability === 'Available' && !cartItems.includes(product.id.toString()) ? { scale: 0.95 } : {}}
-                      >
-                        {cartItems.includes(product.id.toString()) ? (
-                          <>
-                            <CheckIcon className="h-4 w-4 mr-1" />
-                            Already Added
-                          </>
-                        ) : addedToCart === product.id ? (
-                          <>
-                            <CheckIcon className="h-4 w-4 mr-1" />
-                            Added!
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                            Add to Cart
-                          </>
-                        )}
-                      </motion.button>
+                    {/* Availability Badge */}
+                    <div className="absolute top-4 left-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        isAvailable
+                          ? 'bg-success-100 text-success-800' 
+                          : 'bg-error-100 text-error-800'
+                      }`}>
+                        {isAvailable ? 'Available' : 'Out of Stock'}
+                      </span>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+
+                  {/* Product Info */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-xl font-bold text-secondary-900 group-hover:text-primary-600 transition-colors">
+                        {product.name}
+                      </h3>
+                    </div>
+
+                    <p className="text-secondary-600 text-sm mb-4 line-clamp-2">
+                      {product.description || 'No description available'}
+                    </p>
+
+                    {/* Vendor */}
+                    <div className="flex items-center mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-full flex items-center justify-center mr-3">
+                        <span className="text-white text-sm font-bold">
+                          {vendorName.charAt(0)}
+                        </span>
+                      </div>
+                      <span className="text-sm text-secondary-600">{vendorName}</span>
+                    </div>
+
+                    {/* Price and Actions */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-2xl font-bold text-secondary-900">₹{defaultPrice}</span>
+                        <span className="text-secondary-500">/{defaultPeriod}</span>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <Link
+                          href={`/products/${product.id}`}
+                          className="px-4 py-2 bg-secondary-100 text-secondary-900 rounded-lg hover:bg-secondary-200 transition-colors font-medium"
+                        >
+                          View
+                        </Link>
+                        <motion.button
+                          onClick={() => handleAddToCart(product)}
+                          disabled={!isAvailable}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${
+                            isAvailable
+                              ? cartItems.includes(product.id)
+                                ? 'bg-success-600 text-white cursor-default'
+                                : addedToCart === product.id
+                                  ? 'bg-success-600 text-white'
+                                  : 'bg-primary-600 text-white hover:bg-primary-700'
+                              : 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+                          }`}
+                          whileHover={isAvailable && !cartItems.includes(product.id) ? { scale: 1.05 } : {}}
+                          whileTap={isAvailable && !cartItems.includes(product.id) ? { scale: 0.95 } : {}}
+                        >
+                          {cartItems.includes(product.id) ? (
+                            <>
+                              <CheckIcon className="h-4 w-4 mr-1" />
+                              Added
+                            </>
+                          ) : addedToCart === product.id ? (
+                            <>
+                              <CheckIcon className="h-4 w-4 mr-1" />
+                              Added!
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCartIcon className="h-4 w-4 mr-1" />
+                              Add
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </motion.div>
 
         {/* Empty State */}
-        {filteredAndSortedProducts.length === 0 && (
+        {filteredAndSortedProducts.length === 0 && !loading && (
           <motion.div
             className="text-center py-16"
             initial={{ opacity: 0, y: 50 }}
@@ -491,26 +375,11 @@ export default function ProductsPage() {
             <button
               onClick={() => {
                 setSearchTerm("");
-                setSelectedCategory("All");
                 setSortBy("Featured");
               }}
               className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
             >
               Clear Filters
-            </button>
-          </motion.div>
-        )}
-
-        {/* Load More Button */}
-        {filteredAndSortedProducts.length > 0 && (
-          <motion.div
-            className="text-center mt-12"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-          >
-            <button className="px-8 py-3 bg-white text-secondary-700 border border-secondary-200 rounded-xl hover:bg-secondary-50 transition-colors font-medium">
-              Load More Products
             </button>
           </motion.div>
         )}

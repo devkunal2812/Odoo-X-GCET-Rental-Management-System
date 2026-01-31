@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { Host_Grotesk } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const hostGrotesk = Host_Grotesk({
   subsets: ["latin"],
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${hostGrotesk.variable} font-host antialiased bg-gray-50`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

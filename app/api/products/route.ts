@@ -4,13 +4,19 @@ import { prisma } from "@/app/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const published = searchParams.get("published") !== "false";
+    const publishedParam = searchParams.get("published");
     const vendorId = searchParams.get("vendorId");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
 
     const where: any = {};
-    if (published) where.published = true;
+    // Only filter by published if explicitly set to "true"
+    // published=false means show ALL products (for vendor dashboard)
+    // published=true or not set means show only published (for public catalog)
+    if (publishedParam === "true" || publishedParam === null) {
+      where.published = true;
+    }
+    // If publishedParam === "false", don't add published filter (show all)
     if (vendorId) where.vendorId = vendorId;
 
     const [products, total] = await Promise.all([

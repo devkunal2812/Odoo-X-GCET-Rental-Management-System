@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { UserIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<"customer" | "vendor" | "admin">("customer");
@@ -15,22 +16,54 @@ export default function LoginPage() {
     rememberMe: false
   });
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, loading, error, clearError, isAuthenticated } = useAuth();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Check for success message from URL
+  useEffect(() => {
+    const message = searchParams.get('message');
+    if (message) {
+      setSuccessMessage(message);
+    }
+  }, [searchParams]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (error) clearError();
   };
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Login attempt:", { role: selectedRole, ...formData });
+    clearError();
+    setSuccessMessage(null);
     
-    // Mock authentication - redirect based on role
-    if (selectedRole === "admin") {
-      router.push("/admin");
-    } else if (selectedRole === "vendor") {
-      router.push("/dashboard");
-    } else {
-      router.push("/");
+    try {
+      await login({
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      // Show success notification based on role
+      const roleMessage = selectedRole === 'admin' 
+        ? 'Redirecting to Admin Dashboard...'
+        : selectedRole === 'vendor'
+        ? 'Redirecting to Vendor Portal...'
+        : 'Redirecting to Home...';
+      
+      setSuccessMessage(roleMessage);
+      
+      // Redirect handled automatically by AuthContext based on user role
+    } catch (err) {
+      // Error is stored in error state and displayed below
+      console.error('Login failed:', err);
     }
   };
 
@@ -150,6 +183,20 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 text-sm">{successMessage}</p>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-secondary-900">
@@ -216,9 +263,19 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${currentConfig.buttonColor}`}
+                disabled={loading}
+                className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${currentConfig.buttonColor} ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
-                Sign In as {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`
+                )}
               </button>
             </form>
 

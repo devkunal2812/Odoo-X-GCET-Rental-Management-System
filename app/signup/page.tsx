@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -14,12 +14,13 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon
 } from "@heroicons/react/24/outline";
+import { useAuth } from "@/contexts/AuthContext";
+import type { SignupRequest } from "@/types/api";
 
 export default function SignupPage() {
   const [userType, setUserType] = useState<"customer" | "vendor">("customer");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState("");
   
@@ -36,6 +37,21 @@ export default function SignupPage() {
   });
 
   const router = useRouter();
+  const { signup, loading, error: authError, clearError, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
+
+  // Clear auth error when user types
+  useEffect(() => {
+    if (authError) {
+      clearError();
+    }
+  }, [formData]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -110,25 +126,38 @@ export default function SignupPage() {
       return;
     }
 
-    setIsLoading(true);
     setErrors({});
+    clearError();
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Split name into first and last name
+      const nameParts = formData.name.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+
+      const signupData: SignupRequest = {
+        firstName,
+        lastName,
+        email: formData.email,
+        password: formData.password,
+        role: userType.toUpperCase() as 'CUSTOMER' | 'VENDOR',
+        companyName: userType === 'vendor' ? formData.companyName : undefined,
+        gstin: userType === 'vendor' && formData.gstin ? formData.gstin : undefined,
+        couponCode: formData.couponCode || undefined,
+      };
       
-      // Mock successful registration
+      await signup(signupData);
+      
+      // Show success message
       setSuccessMessage(`${userType === "customer" ? "Customer" : "Vendor"} account created successfully! Please check your email for verification.`);
       
-      // Redirect after success
+      // Redirect after 3 seconds
       setTimeout(() => {
-        router.push("/login");
+        router.push("/login?message=Please check your email to verify your account");
       }, 3000);
       
     } catch (error) {
-      setErrors({ submit: "Registration failed. Please try again." });
-    } finally {
-      setIsLoading(false);
+      setErrors({ submit: authError || "Registration failed. Please try again." });
     }
   };
 
@@ -302,6 +331,13 @@ export default function SignupPage() {
               <div className="mb-6 p-4 bg-error-50 border border-error-200 rounded-lg flex items-center">
                 <ExclamationCircleIcon className="w-5 h-5 text-error-600 mr-2" />
                 <span className="text-error-700 text-sm">{errors.submit}</span>
+              </div>
+            )}
+
+            {authError && (
+              <div className="mb-6 p-4 bg-error-50 border border-error-200 rounded-lg flex items-center">
+                <ExclamationCircleIcon className="w-5 h-5 text-error-600 mr-2" />
+                <span className="text-error-700 text-sm">{authError}</span>
               </div>
             )}
 
@@ -539,12 +575,12 @@ export default function SignupPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={loading}
                 className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${currentConfig.buttonColor} ${
-                  isLoading ? "opacity-50 cursor-not-allowed" : ""
+                  loading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                {isLoading ? (
+                {loading ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                     Creating Account...

@@ -8,11 +8,12 @@ import {
   ExclamationCircleIcon,
   ArrowLeftIcon
 } from "@heroicons/react/24/outline";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { forgotPassword, loading, error: authError, clearError } = useAuth();
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -29,17 +30,14 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setIsLoading(true);
     setError("");
+    clearError();
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await forgotPassword({ email });
       setIsSubmitted(true);
-    } catch (error) {
-      setError("Failed to send reset email. Please try again.");
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setError(authError || "Failed to send reset email. Please try again.");
     }
   };
 
@@ -193,12 +191,12 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={loading}
                 className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors bg-primary-600 hover:bg-primary-700 ${
-                  isLoading ? "opacity-50 cursor-not-allowed" : ""
+                  loading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                {isLoading ? (
+                {loading ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                     Sending Reset Link...

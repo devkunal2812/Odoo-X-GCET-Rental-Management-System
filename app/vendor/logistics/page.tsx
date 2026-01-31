@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   TruckIcon,
@@ -13,110 +13,55 @@ import {
   PhoneIcon,
   CalendarIcon
 } from "@heroicons/react/24/outline";
+import { api } from "@/app/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock data
-const mockLogistics = [
-  {
-    id: "LOG-001",
-    orderId: "ORD-001",
-    type: "pickup",
-    customer: {
-      name: "John Smith",
-      phone: "+1 (555) 123-4567",
-      email: "john.smith@email.com"
-    },
-    product: "Professional Camera Kit",
-    location: {
-      name: "Downtown Store",
-      address: "123 Main St, Downtown, City 12345"
-    },
-    scheduledDate: "2024-02-01",
-    scheduledTime: "10:00 AM",
-    status: "scheduled",
-    notes: "Customer requested early pickup at 8 AM",
-    rentalPeriod: "Feb 1-4, 2024"
-  },
-  {
-    id: "LOG-002",
-    orderId: "ORD-002",
-    type: "return",
-    customer: {
-      name: "Sarah Johnson",
-      phone: "+1 (555) 234-5678",
-      email: "sarah.j@email.com"
-    },
-    product: "Power Drill Set",
-    location: {
-      name: "North Branch",
-      address: "456 Oak Ave, North District, City 12345"
-    },
-    scheduledDate: "2024-01-31",
-    scheduledTime: "3:00 PM",
-    status: "completed",
-    notes: "Equipment returned in excellent condition",
-    rentalPeriod: "Jan 30-31, 2024"
-  },
-  {
-    id: "LOG-003",
-    orderId: "ORD-003",
-    type: "pickup",
-    customer: {
-      name: "Mike Wilson",
-      phone: "+1 (555) 345-6789",
-      email: "mike.wilson@email.com"
-    },
-    product: "Party Sound System",
-    location: {
-      name: "Main Store",
-      address: "789 Pine St, Central, City 12345"
-    },
-    scheduledDate: "2024-01-29",
-    scheduledTime: "2:00 PM",
-    status: "in-progress",
-    notes: "Large item - requires van for transport",
-    rentalPeriod: "Jan 29-31, 2024"
-  },
-  {
-    id: "LOG-004",
-    orderId: "ORD-004",
-    type: "return",
-    customer: {
-      name: "Emily Davis",
-      phone: "+1 (555) 456-7890",
-      email: "emily.davis@email.com"
-    },
-    product: "Mountain Bike",
-    location: {
-      name: "South Location",
-      address: "321 Elm St, South District, City 12345"
-    },
-    scheduledDate: "2024-02-05",
-    scheduledTime: "11:00 AM",
-    status: "scheduled",
-    notes: "Customer will provide own helmet",
-    rentalPeriod: "Feb 2-5, 2024"
-  },
-  {
-    id: "LOG-005",
-    orderId: "ORD-005",
-    type: "pickup",
-    customer: {
-      name: "David Brown",
-      phone: "+1 (555) 567-8901",
-      email: "david.brown@email.com"
-    },
-    product: "Projector & Screen",
-    location: {
-      name: "Downtown Store",
-      address: "123 Main St, Downtown, City 12345"
-    },
-    scheduledDate: "2024-01-28",
-    scheduledTime: "9:00 AM",
-    status: "overdue",
-    notes: "Customer missed scheduled pickup time",
-    rentalPeriod: "Jan 28-30, 2024"
-  }
-];
+// Types for API response
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  customer: {
+    phone?: string;
+    user: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  };
+  lines: {
+    product: {
+      name: string;
+    };
+    quantity: number;
+  }[];
+}
+
+interface LogisticsItem {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  type: 'pickup' | 'return';
+  customer: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  product: string;
+  location: {
+    name: string;
+    address: string;
+  };
+  scheduledDate: string;
+  scheduledTime: string;
+  status: 'scheduled' | 'in-progress' | 'completed' | 'overdue';
+  notes: string;
+  rentalPeriod: string;
+}
 
 const typeOptions = ["All", "Pickup", "Return"];
 const statusOptions = ["All", "Scheduled", "In-Progress", "Completed", "Overdue"];
@@ -137,9 +82,36 @@ const getStatusColor = (status: string) => {
 };
 
 const getTypeColor = (type: string) => {
-  return type === "pickup" 
+  return type === "pickup"
     ? { bg: "#f0f9ff", text: "#0369a1" }
     : { bg: "#f0fdf4", text: "#15803d" };
+};
+
+// Format rental period display
+const formatRentalPeriod = (startDate: string, endDate: string): string => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+};
+
+// Get logistics status from order status
+const getLogisticsStatus = (orderStatus: string, type: 'pickup' | 'return', date: Date): 'scheduled' | 'in-progress' | 'completed' | 'overdue' => {
+  const now = new Date();
+
+  if (type === 'pickup') {
+    if (orderStatus === 'PICKED_UP' || orderStatus === 'RETURNED') return 'completed';
+    if (orderStatus === 'CONFIRMED') {
+      if (date < now) return 'overdue';
+      return 'scheduled';
+    }
+  } else {
+    if (orderStatus === 'RETURNED') return 'completed';
+    if (orderStatus === 'PICKED_UP') {
+      if (date < now) return 'overdue';
+      return 'scheduled';
+    }
+  }
+  return 'scheduled';
 };
 
 export default function VendorLogistics() {
@@ -147,34 +119,166 @@ export default function VendorLogistics() {
   const [selectedType, setSelectedType] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const filteredLogistics = mockLogistics.filter(item => {
-    const matchesSearch = 
+  // Fetch orders from API
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get<{ success: boolean; orders: Order[] }>('/orders');
+        if (response.success) {
+          setOrders(response.orders || []);
+        }
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchOrders();
+    }
+  }, [user]);
+
+  // Transform orders to logistics items
+  const getLogisticsItems = (): LogisticsItem[] => {
+    const items: LogisticsItem[] = [];
+
+    orders.forEach(order => {
+      // Only include orders that need pickup or return tracking
+      if (!['CONFIRMED', 'PICKED_UP', 'RETURNED'].includes(order.status)) return;
+
+      const customerName = order.customer?.user
+        ? `${order.customer.user.firstName} ${order.customer.user.lastName}`
+        : 'Unknown';
+      const productName = order.lines?.[0]?.product?.name || 'N/A';
+      const rentalPeriod = order.startDate && order.endDate
+        ? formatRentalPeriod(order.startDate, order.endDate)
+        : 'N/A';
+
+      // Add pickup item for confirmed orders
+      if (order.status === 'CONFIRMED') {
+        const pickupDate = new Date(order.startDate);
+        items.push({
+          id: `LOG-${order.orderNumber}-P`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          type: 'pickup',
+          customer: {
+            name: customerName,
+            phone: order.customer?.phone || '+91 98765 43210',
+            email: order.customer?.user?.email || ''
+          },
+          product: productName,
+          location: {
+            name: 'Store Location',
+            address: 'Pickup counter, Main Store'
+          },
+          scheduledDate: order.startDate,
+          scheduledTime: '10:00 AM',
+          status: getLogisticsStatus(order.status, 'pickup', pickupDate),
+          notes: '',
+          rentalPeriod
+        });
+      }
+
+      // Add return item for picked up orders
+      if (order.status === 'PICKED_UP') {
+        const returnDate = new Date(order.endDate);
+        items.push({
+          id: `LOG-${order.orderNumber}-R`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          type: 'return',
+          customer: {
+            name: customerName,
+            phone: order.customer?.phone || '+91 98765 43210',
+            email: order.customer?.user?.email || ''
+          },
+          product: productName,
+          location: {
+            name: 'Store Location',
+            address: 'Return counter, Main Store'
+          },
+          scheduledDate: order.endDate,
+          scheduledTime: '5:00 PM',
+          status: getLogisticsStatus(order.status, 'return', returnDate),
+          notes: '',
+          rentalPeriod
+        });
+      }
+    });
+
+    // Sort by scheduled date
+    return items.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+  };
+
+  const logisticsItems = getLogisticsItems();
+
+  // Filter logistics items
+  const filteredLogistics = logisticsItems.filter(item => {
+    const matchesSearch =
       item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.product.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = selectedType === "All" || item.type.toLowerCase() === selectedType.toLowerCase();
-    const matchesStatus = selectedStatus === "All" || item.status.toLowerCase() === selectedStatus.toLowerCase();
+    const matchesStatus = selectedStatus === "All" || item.status.toLowerCase() === selectedStatus.toLowerCase().replace('-', '');
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  const handleUpdateStatus = (logId: string, newStatus: string) => {
-    // In a real app, this would make an API call
-    console.log(`Updating logistics ${logId} to ${newStatus}`);
-    alert(`Status updated to ${newStatus}!`);
+  const handleUpdateStatus = async (orderId: string, newStatus: string, type: 'pickup' | 'return') => {
+    try {
+      const endpoint = type === 'pickup' ? `/orders/${orderId}/pickup` : `/orders/${orderId}/return`;
+      await api.post(endpoint, {});
+
+      // Refresh orders
+      const response = await api.get<{ success: boolean; orders: Order[] }>('/orders');
+      if (response.success) {
+        setOrders(response.orders || []);
+      }
+      alert(`Status updated successfully!`);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status.');
+    }
   };
 
   const handleCallCustomer = (phone: string) => {
-    // In a real app, this would initiate a call
-    console.log(`Calling ${phone}`);
     alert(`Calling ${phone}...`);
   };
 
-  const todayItems = filteredLogistics.filter(item => 
+  const todayItems = filteredLogistics.filter(item =>
     new Date(item.scheduledDate).toDateString() === new Date().toDateString()
   );
   const scheduledItems = filteredLogistics.filter(item => item.status === "scheduled");
   const overdueItems = filteredLogistics.filter(item => item.status === "overdue");
+  const inProgressItems = filteredLogistics.filter(item => item.status === "in-progress");
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-secondary-900">Pickups & Returns</h1>
+            <p className="mt-2 text-secondary-600">Manage logistics and track equipment movement</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+              <div className="w-20 h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="w-12 h-8 bg-gray-200 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -228,7 +332,7 @@ export default function VendorLogistics() {
             <div>
               <p className="text-sm font-medium text-secondary-600">In Progress</p>
               <p className="text-2xl font-bold text-yellow-600">
-                {filteredLogistics.filter(item => item.status === "in-progress").length}
+                {inProgressItems.length}
               </p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center">
@@ -253,7 +357,6 @@ export default function VendorLogistics() {
       {/* Search and Filters */}
       <div className="bg-white rounded-xl shadow-lg p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Search */}
           <div className="relative flex-1 max-w-md">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-secondary-500" />
             <input
@@ -265,7 +368,6 @@ export default function VendorLogistics() {
             />
           </div>
 
-          {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="lg:hidden flex items-center px-4 py-3 rounded-lg border-2 border-primary-600 text-primary-600 transition-colors"
@@ -274,7 +376,6 @@ export default function VendorLogistics() {
             Filters
           </button>
 
-          {/* Desktop Filters */}
           <div className="hidden lg:flex items-center space-x-4">
             <select
               value={selectedType}
@@ -297,7 +398,6 @@ export default function VendorLogistics() {
           </div>
         </div>
 
-        {/* Mobile Filters */}
         {showFilters && (
           <div className="lg:hidden mt-4 pt-4 border-t border-secondary-200 space-y-4">
             <select
@@ -328,7 +428,7 @@ export default function VendorLogistics() {
           const statusColor = getStatusColor(item.status);
           const typeColor = getTypeColor(item.type);
           const StatusIcon = statusColor.icon;
-          
+
           return (
             <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
               <div className="p-6">
@@ -353,7 +453,7 @@ export default function VendorLogistics() {
                         {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                       </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h4 className="font-semibold mb-2 text-secondary-900">
@@ -363,7 +463,7 @@ export default function VendorLogistics() {
                           <strong>Customer:</strong> {item.customer.name}
                         </p>
                         <p className="text-sm mb-1 text-secondary-600">
-                          <strong>Order:</strong> {item.orderId}
+                          <strong>Order:</strong> {item.orderNumber}
                         </p>
                         <p className="text-sm text-secondary-600">
                           <strong>Rental:</strong> {item.rentalPeriod}
@@ -387,11 +487,6 @@ export default function VendorLogistics() {
                             {new Date(item.scheduledDate).toLocaleDateString()} at {item.scheduledTime}
                           </p>
                         </div>
-                        {item.notes && (
-                          <p className="text-sm italic text-secondary-600">
-                            <strong>Notes:</strong> {item.notes}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -406,45 +501,41 @@ export default function VendorLogistics() {
                       >
                         <PhoneIcon className="h-5 w-5" />
                       </button>
-                      
+
                       <Link
-                        href={`/vendor/logistics/${item.id}`}
+                        href={`/vendor/orders/${item.orderId}`}
                         className="p-2 rounded-lg hover:bg-secondary-100 transition-colors text-primary-600"
-                        title="View Details"
+                        title="View Order"
                       >
                         <MapPinIcon className="h-5 w-5" />
                       </Link>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      {item.status === "scheduled" && (
+                      {item.status === "scheduled" && item.type === 'pickup' && (
                         <button
-                          onClick={() => handleUpdateStatus(item.id, "in-progress")}
+                          onClick={() => handleUpdateStatus(item.orderId, "picked_up", 'pickup')}
                           className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
                           style={{ backgroundColor: "#fef3c7", color: "#d97706" }}
                         >
-                          Start
+                          Mark Picked Up
                         </button>
                       )}
 
-                      {item.status === "in-progress" && (
+                      {item.status === "scheduled" && item.type === 'return' && (
                         <button
-                          onClick={() => handleUpdateStatus(item.id, "completed")}
+                          onClick={() => handleUpdateStatus(item.orderId, "returned", 'return')}
                           className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
                           style={{ backgroundColor: "#dcfce7", color: "#16a34a" }}
                         >
-                          Complete
+                          Mark Returned
                         </button>
                       )}
 
                       {item.status === "overdue" && (
-                        <button
-                          onClick={() => handleUpdateStatus(item.id, "scheduled")}
-                          className="px-4 py-2 rounded-lg font-medium text-sm transition-colors hover:opacity-90"
-                          style={{ backgroundColor: "#dbeafe", color: "#2563eb" }}
-                        >
-                          Reschedule
-                        </button>
+                        <span className="px-4 py-2 rounded-lg font-medium text-sm bg-red-100 text-red-600">
+                          Overdue
+                        </span>
                       )}
                     </div>
                   </div>
@@ -465,18 +556,22 @@ export default function VendorLogistics() {
             No logistics found
           </h3>
           <p className="mb-6 text-secondary-600">
-            Try adjusting your search or filters
+            {logisticsItems.length === 0
+              ? "No pickups or returns scheduled. Create orders to see logistics items."
+              : "Try adjusting your search or filters"}
           </p>
-          <button
-            onClick={() => {
-              setSearchTerm("");
-              setSelectedType("All");
-              setSelectedStatus("All");
-            }}
-            className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-primary-600 text-white"
-          >
-            Clear Filters
-          </button>
+          {logisticsItems.length > 0 && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedType("All");
+                setSelectedStatus("All");
+              }}
+              className="px-6 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-primary-600 text-white"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       )}
     </div>

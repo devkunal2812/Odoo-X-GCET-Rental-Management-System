@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   HomeIcon,
   CubeIcon,
@@ -35,6 +36,34 @@ export default function VendorLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout, loading } = useAuth();
+
+  // Protect vendor routes
+  useEffect(() => {
+    if (!loading && (!user || user.role !== 'VENDOR')) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  // Show loading while checking auth
+  if (loading || !user || user.role !== 'VENDOR') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  const vendorName = user.vendorProfile?.companyName || 'Vendor';
 
   const isActive = (href: string) => {
     if (href === "/vendor") {
@@ -75,11 +104,11 @@ export default function VendorLayout({
           <div className="p-6 border-b border-secondary-700">
             <div className="flex items-center">
               <div className="w-12 h-12 rounded-full flex items-center justify-center mr-3 bg-secondary-600">
-                <UserIcon className="h-6 w-6 text-white" />
+                <span className="text-white font-bold text-lg">{vendorName.charAt(0)}</span>
               </div>
               <div>
-                <h3 className="font-semibold text-white">TechRent Pro</h3>
-                <p className="text-sm text-secondary-300">Premium Vendor</p>
+                <h3 className="font-semibold text-white">{vendorName}</h3>
+                <p className="text-sm text-secondary-300">{user.email}</p>
               </div>
             </div>
           </div>
@@ -108,15 +137,15 @@ export default function VendorLayout({
 
           {/* Logout */}
           <div className="p-4 border-t border-secondary-700">
-            <Link
-              href="/login"
-              className="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors hover:bg-secondary-700 text-secondary-300 hover:text-white"
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors hover:bg-secondary-700 text-secondary-300 hover:text-white"
             >
               <svg className="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
               Logout
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -135,7 +164,7 @@ export default function VendorLayout({
             
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-secondary-900">Welcome back!</p>
+                <p className="text-sm font-medium text-secondary-900">Welcome back, {user.firstName}!</p>
                 <p className="text-xs text-secondary-600">Manage your rental business</p>
               </div>
             </div>

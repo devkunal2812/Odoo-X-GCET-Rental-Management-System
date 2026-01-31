@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   UsersIcon,
@@ -12,14 +12,15 @@ import {
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { getDashboardStats, mockRentalOrders, mockInvoices } from '../../../lib/adminData';
+import { reportService } from '@/app/lib/services/reports';
+import type { AdminSummaryReport } from '@/types/api';
+import { useAuth } from '@/contexts/AuthContext';
 
-const StatCard = ({ title, value, icon: Icon, color, trend }: {
+const StatCard = ({ title, value, icon: Icon, color }: {
   title: string;
   value: string | number;
   icon: any;
   color: string;
-  trend?: string;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -30,9 +31,6 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: {
       <div>
         <p className="text-sm font-medium text-[#715A5A]">{title}</p>
         <p className="text-3xl font-bold text-[#37353E] mt-2">{value}</p>
-        {trend && (
-          <p className="text-sm text-green-600 mt-1">{trend}</p>
-        )}
       </div>
       <div className={`p-3 rounded-lg ${color}`}>
         <Icon className="h-6 w-6 text-white" />
@@ -42,10 +40,51 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: {
 );
 
 export default function AdminDashboard() {
-  const stats = getDashboardStats();
+  const { user } = useAuth();
+  const [stats, setStats] = useState<AdminSummaryReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const recentOrders = mockRentalOrders.slice(0, 5);
-  const recentInvoices = mockInvoices.slice(0, 5);
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await reportService.getAdminReport('summary');
+        setStats(response as AdminSummaryReport);
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error || 'Failed to load dashboard'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -65,28 +104,25 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Users"
-          value={stats.totalUsers}
+          value={stats.metrics.totalVendors + stats.metrics.totalCustomers}
           icon={UsersIcon}
           color="bg-blue-500"
-          trend="+12% this month"
         />
         <StatCard
           title="Active Vendors"
-          value={stats.totalVendors}
+          value={stats.metrics.totalVendors}
           icon={BuildingStorefrontIcon}
           color="bg-green-500"
-          trend="+3 new vendors"
         />
         <StatCard
           title="Total Products"
-          value={stats.totalProducts}
+          value={stats.metrics.totalProducts}
           icon={CubeIcon}
           color="bg-purple-500"
-          trend="+8 this week"
         />
         <StatCard
-          title="Active Orders"
-          value={stats.activeOrders}
+          title="Total Orders"
+          value={stats.metrics.totalOrders}
           icon={ClipboardDocumentListIcon}
           color="bg-orange-500"
         />
@@ -96,88 +132,41 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Revenue"
-          value={`$${stats.totalRevenue.toFixed(2)}`}
+          value={`₹${stats.metrics.totalRevenue.toFixed(2)}`}
           icon={CurrencyDollarIcon}
           color="bg-green-600"
-          trend="+15% vs last month"
         />
         <StatCard
-          title="Pending Vendors"
-          value={stats.pendingVendors}
+          title="Active Reservations"
+          value={stats.metrics.activeReservations}
+          icon={CheckCircleIcon}
+          color="bg-blue-500"
+        />
+        <StatCard
+          title="Late Returns"
+          value={stats.metrics.lateReturns}
           icon={ExclamationTriangleIcon}
-          color="bg-yellow-500"
-        />
-        <StatCard
-          title="Overdue Invoices"
-          value={stats.overdueInvoices}
-          icon={ClockIcon}
           color="bg-red-500"
         />
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl shadow-sm p-6 border border-[#D3DAD9]"
-        >
-          <h3 className="text-lg font-semibold text-[#37353E] mb-4">Recent Orders</h3>
-          <div className="space-y-4">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-3 bg-[#D3DAD9] rounded-lg">
-                <div>
-                  <p className="font-medium text-[#37353E]">{order.productName}</p>
-                  <p className="text-sm text-[#715A5A]">{order.customerName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-[#37353E]">${order.totalAmount}</p>
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    order.status === 'active' ? 'bg-green-100 text-green-800' :
-                    order.status === 'returned' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {order.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Recent Invoices */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl shadow-sm p-6 border border-[#D3DAD9]"
-        >
-          <h3 className="text-lg font-semibold text-[#37353E] mb-4">Recent Invoices</h3>
-          <div className="space-y-4">
-            {recentInvoices.map((invoice) => (
-              <div key={invoice.id} className="flex items-center justify-between p-3 bg-[#D3DAD9] rounded-lg">
-                <div>
-                  <p className="font-medium text-[#37353E]">#{invoice.id}</p>
-                  <p className="text-sm text-[#715A5A]">{invoice.customerName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-[#37353E]">${invoice.total}</p>
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
-                    invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                    invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {invoice.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+      {/* Order Status Breakdown */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-xl shadow-sm p-6 border border-[#D3DAD9]"
+      >
+        <h3 className="text-lg font-semibold text-[#37353E] mb-4">Orders by Status</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {stats.ordersByStatus.map((statusData) => (
+            <div key={statusData.status} className="p-4 bg-[#D3DAD9] rounded-lg">
+              <p className="text-sm text-[#715A5A] mb-1">{statusData.status}</p>
+              <p className="text-2xl font-bold text-[#37353E]">{statusData.count}</p>
+            </div>
+          ))}
+        </div>
+      </motion.div>
 
       {/* Quick Actions */}
       <motion.div

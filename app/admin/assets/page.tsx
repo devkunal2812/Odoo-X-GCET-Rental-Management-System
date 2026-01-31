@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CubeIcon,
@@ -13,124 +13,8 @@ import {
   PlusIcon,
   PencilIcon
 } from '@heroicons/react/24/outline';
-
-interface Asset {
-  id: string;
-  name: string;
-  category: string;
-  serialNumber: string;
-  status: 'Available' | 'Rented' | 'Maintenance' | 'Out of Service';
-  condition: 'Excellent' | 'Good' | 'Fair' | 'Poor';
-  purchaseDate: string;
-  purchasePrice: number;
-  currentValue: number;
-  dailyRate: number;
-  location: string;
-  partner: string;
-  totalRentals: number;
-  totalRevenue: number;
-  lastMaintenanceDate: string;
-  nextMaintenanceDate: string;
-  utilization: number;
-}
-
-const mockAssets: Asset[] = [
-  {
-    id: '1',
-    name: 'Professional DSLR Camera Kit',
-    category: 'Photography Equipment',
-    serialNumber: 'CAM-2024-001',
-    status: 'Available',
-    condition: 'Excellent',
-    purchaseDate: '2024-01-15',
-    purchasePrice: 2500,
-    currentValue: 2200,
-    dailyRate: 45,
-    location: 'Warehouse A - Section 1',
-    partner: 'TechRent Pro',
-    totalRentals: 45,
-    totalRevenue: 2025,
-    lastMaintenanceDate: '2024-01-20',
-    nextMaintenanceDate: '2024-04-20',
-    utilization: 85
-  },
-  {
-    id: '2',
-    name: 'Power Drill Set Professional',
-    category: 'Construction Tools',
-    serialNumber: 'TOOL-2024-002',
-    status: 'Rented',
-    condition: 'Good',
-    purchaseDate: '2024-01-10',
-    purchasePrice: 350,
-    currentValue: 280,
-    dailyRate: 25,
-    location: 'Warehouse B - Section 3',
-    partner: 'ToolMaster',
-    totalRentals: 38,
-    totalRevenue: 950,
-    lastMaintenanceDate: '2024-01-25',
-    nextMaintenanceDate: '2024-03-25',
-    utilization: 78
-  },
-  {
-    id: '3',
-    name: 'Professional Sound System',
-    category: 'Audio Equipment',
-    serialNumber: 'AUD-2024-003',
-    status: 'Maintenance',
-    condition: 'Fair',
-    purchaseDate: '2023-12-20',
-    purchasePrice: 1800,
-    currentValue: 1400,
-    dailyRate: 75,
-    location: 'Maintenance Bay 1',
-    partner: 'EventPro',
-    totalRentals: 28,
-    totalRevenue: 2100,
-    lastMaintenanceDate: '2024-01-30',
-    nextMaintenanceDate: '2024-02-05',
-    utilization: 72
-  },
-  {
-    id: '4',
-    name: 'Mountain Bike - Trek',
-    category: 'Sports Equipment',
-    serialNumber: 'BIKE-2024-004',
-    status: 'Available',
-    condition: 'Good',
-    purchaseDate: '2024-01-05',
-    purchasePrice: 800,
-    currentValue: 720,
-    dailyRate: 35,
-    location: 'Warehouse C - Bike Rack 2',
-    partner: 'BikeRentals',
-    totalRentals: 52,
-    totalRevenue: 1820,
-    lastMaintenanceDate: '2024-01-28',
-    nextMaintenanceDate: '2024-04-28',
-    utilization: 68
-  },
-  {
-    id: '5',
-    name: 'Electric Scooter',
-    category: 'Transportation',
-    serialNumber: 'SCOOT-2024-005',
-    status: 'Out of Service',
-    condition: 'Poor',
-    purchaseDate: '2023-11-15',
-    purchasePrice: 600,
-    currentValue: 300,
-    dailyRate: 20,
-    location: 'Repair Shop',
-    partner: 'UrbanRide',
-    totalRentals: 34,
-    totalRevenue: 680,
-    lastMaintenanceDate: '2024-01-15',
-    nextMaintenanceDate: '2024-02-10',
-    utilization: 45
-  }
-];
+import { productService } from '@/app/lib/services/products';
+import type { Product } from '@/types/api';
 
 const AssetDetailModal = ({ asset, isOpen, onClose }: {
   asset: Asset | null;
