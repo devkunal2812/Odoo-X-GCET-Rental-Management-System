@@ -105,12 +105,12 @@ export default function VendorLayout({
           {/* Vendor Info */}
           <div className="p-6 border-b border-secondary-700">
             <div className="flex items-center">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mr-3 bg-secondary-600">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 mr-3 bg-secondary-600">
                 <span className="text-white font-bold text-lg">{vendorName.charAt(0)}</span>
               </div>
-              <div>
-                <h3 className="font-semibold text-white">{vendorName}</h3>
-                <p className="text-sm text-secondary-300">{user.email}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white truncate">{vendorName}</h3>
+                <p className="text-sm text-secondary-300 truncate">{user.email}</p>
               </div>
             </div>
           </div>
@@ -164,10 +164,11 @@ export default function VendorLayout({
               <Bars3Icon className="h-6 w-6" />
             </button>
             
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-secondary-900">Welcome back, {user.firstName}!</p>
-                <p className="text-xs text-secondary-600">Manage your rental business</p>
+            <div className="flex items-center space-x-3 ">
+              
+              <div className="text-left">
+                <p className="text-lg font-bold text-secondary-900">Welcome back, {user.firstName}!</p>
+                <p className="text-sm text-secondary-600">Manage your rental business efficiently</p>
               </div>
             </div>
           </div>
