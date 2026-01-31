@@ -15,7 +15,8 @@ import {
   XMarkIcon,
   ArrowRightOnRectangleIcon,
   CubeIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  TicketIcon
 } from '@heroicons/react/24/outline';
 
 const sidebarItems = [
@@ -25,6 +26,7 @@ const sidebarItems = [
   { name: 'Rental Partners', href: '/admin/partners', icon: BuildingStorefrontIcon },
   { name: 'Customers', href: '/admin/customers', icon: UsersIcon },
   { name: 'Billing & Invoices', href: '/admin/billing', icon: CurrencyDollarIcon },
+  { name: 'Coupons', href: '/admin/coupons', icon: TicketIcon },
   { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
   { name: 'Settings', href: '/admin/settings', icon: CogIcon },
 ];

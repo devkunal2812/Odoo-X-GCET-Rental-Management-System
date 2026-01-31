@@ -3,27 +3,21 @@ import { requireRole } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { couponSchema } from "@/app/lib/validation";
 
-export const POST = requireRole("ADMIN")(async (request: NextRequest) => {
+// Create coupon (Vendor only)
+export const POST = requireRole("VENDOR")(async (request: NextRequest, context: any) => {
   try {
     const body = await request.json();
     const data = couponSchema.parse(body);
+    const user = context.user;
 
-    // Admin must specify vendorId when creating coupons
-    if (!body.vendorId) {
-      return NextResponse.json(
-        { error: "vendorId is required" },
-        { status: 400 }
-      );
-    }
-
-    // Verify vendor exists
-    const vendor = await prisma.vendorProfile.findUnique({
-      where: { id: body.vendorId },
+    // Get vendor profile
+    const vendorProfile = await prisma.vendorProfile.findUnique({
+      where: { userId: user.id },
     });
 
-    if (!vendor) {
+    if (!vendorProfile) {
       return NextResponse.json(
-        { error: "Vendor not found" },
+        { error: "Vendor profile not found" },
         { status: 404 }
       );
     }
@@ -43,25 +37,12 @@ export const POST = requireRole("ADMIN")(async (request: NextRequest) => {
     const coupon = await prisma.coupon.create({
       data: {
         code: data.code,
-        vendorId: body.vendorId,
+        vendorId: vendorProfile.id,
         discountType: data.discountType,
         value: data.value,
         validFrom: new Date(data.validFrom),
         validTo: new Date(data.validTo),
         maxUses: data.maxUses,
-      },
-      include: {
-        vendor: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-          },
-        },
       },
     });
 
@@ -74,28 +55,26 @@ export const POST = requireRole("ADMIN")(async (request: NextRequest) => {
   }
 });
 
-export const GET = requireRole("ADMIN")(async (request: NextRequest) => {
+// Get vendor's coupons
+export const GET = requireRole("VENDOR")(async (request: NextRequest, context: any) => {
   try {
+    const user = context.user;
+
+    // Get vendor profile
+    const vendorProfile = await prisma.vendorProfile.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!vendorProfile) {
+      return NextResponse.json(
+        { error: "Vendor profile not found" },
+        { status: 404 }
+      );
+    }
+
     const coupons = await prisma.coupon.findMany({
+      where: { vendorId: vendorProfile.id },
       orderBy: { createdAt: "desc" },
-      include: {
-        vendor: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            orders: true,
-          },
-        },
-      },
     });
 
     return NextResponse.json({ success: true, coupons });

@@ -15,7 +15,8 @@ import {
   Cog6ToothIcon,
   UserIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  TicketIcon
 } from "@heroicons/react/24/outline";
 
 const sidebarItems = [
@@ -23,6 +24,7 @@ const sidebarItems = [
   { name: "Products", href: "/vendor/products", icon: CubeIcon },
   { name: "Orders", href: "/vendor/orders", icon: ClipboardDocumentListIcon },
   { name: "Invoices", href: "/vendor/invoices", icon: DocumentTextIcon },
+  { name: "Coupons", href: "/vendor/coupons", icon: TicketIcon },
   { name: "Pickups & Returns", href: "/vendor/logistics", icon: TruckIcon },
   { name: "Earnings", href: "/vendor/earnings", icon: CurrencyDollarIcon },
   { name: "Analytics", href: "/vendor/analytics", icon: ChartBarIcon },

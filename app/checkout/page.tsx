@@ -33,6 +33,8 @@ export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartLoaded, setCartLoaded] = useState(false);
   const [savedOrderId, setSavedOrderId] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount: number} | null>(null);
+  const [gstPercentage, setGstPercentage] = useState(18); // Default 18% GST
   const { isLoaded, createOrder, verifyPayment, openRazorpay } = useRazorpay();
   
   const [formData, setFormData] = useState({
@@ -65,6 +67,16 @@ export default function CheckoutPage() {
       const items = getCartItems();
       setCartItems(items);
       setCartLoaded(true);
+      
+      // Load applied coupon from localStorage
+      const savedCoupon = localStorage.getItem('appliedCoupon');
+      if (savedCoupon) {
+        try {
+          setAppliedCoupon(JSON.parse(savedCoupon));
+        } catch (error) {
+          console.error('Error loading coupon:', error);
+        }
+      }
     };
 
     loadCartItems();
@@ -76,12 +88,34 @@ export default function CheckoutPage() {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
+  // Fetch GST percentage from settings
+  useEffect(() => {
+    const fetchGSTSettings = async () => {
+      try {
+        const response = await fetch('/api/settings/public');
+        const data = await response.json();
+        
+        if (data.success && data.settings.gst_percentage) {
+          setGstPercentage(data.settings.gst_percentage);
+        }
+      } catch (error) {
+        console.error('Error fetching GST settings:', error);
+        // Keep default 18% if fetch fails
+      }
+    };
+
+    fetchGSTSettings();
+  }, []);
+
   // Calculate totals from real cart data
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + (item.unitPrice * item.quantity * item.rentalDuration);
   }, 0);
   const deliveryFee = deliveryMethods.find(m => m.id === deliveryMethod)?.price || 0;
-  const total = subtotal + deliveryFee;
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const gstAmount = (subtotalAfterDiscount + deliveryFee) * (gstPercentage / 100);
+  const total = subtotalAfterDiscount + deliveryFee + gstAmount;
 
   // Show loading state while cart is loading
   if (!cartLoaded) {
@@ -340,7 +374,13 @@ export default function CheckoutPage() {
                 </div>
               )}
               <div className="space-y-2 mb-8">
-                <p className="text-sm text-secondary-600">Order Total: ₹{total}</p>
+                <p className="text-sm text-secondary-600">Subtotal: ₹{subtotal.toFixed(2)}</p>
+                {appliedCoupon && (
+                  <p className="text-sm text-green-600">Discount ({appliedCoupon.code}): -₹{discountAmount.toFixed(2)}</p>
+                )}
+                <p className="text-sm text-secondary-600">Delivery: {deliveryFee === 0 ? "Free" : `₹${deliveryFee.toFixed(2)}`}</p>
+                <p className="text-sm text-secondary-600">GST ({gstPercentage}%): ₹{gstAmount.toFixed(2)}</p>
+                <p className="text-sm font-semibold text-secondary-900">Order Total: ₹{total.toFixed(2)}</p>
                 <p className="text-sm text-secondary-600">Payment Method: Razorpay</p>
                 <p className="text-sm text-secondary-600">Delivery Method: {deliveryMethods.find(m => m.id === deliveryMethod)?.name}</p>
               </div>
@@ -668,13 +708,30 @@ export default function CheckoutPage() {
                     </div>
                     
                     <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-secondary-900">Total Amount:</span>
-                        <span className="text-2xl font-bold text-primary-600">₹{total}</span>
+                      <div className="space-y-2 mb-3">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-secondary-700">Subtotal:</span>
+                          <span className="text-secondary-900">₹{subtotal.toFixed(2)}</span>
+                        </div>
+                        {appliedCoupon && (
+                          <div className="flex justify-between items-center text-sm text-green-600">
+                            <span>Discount ({appliedCoupon.code}):</span>
+                            <span>-₹{discountAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-secondary-700">Delivery:</span>
+                          <span className="text-secondary-900">{deliveryFee === 0 ? "Free" : `₹${deliveryFee.toFixed(2)}`}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-secondary-700">GST ({gstPercentage}%):</span>
+                          <span className="text-secondary-900">₹{gstAmount.toFixed(2)}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-secondary-600">
-                        Includes all taxes and delivery charges
-                      </p>
+                      <div className="flex justify-between items-center pt-3 border-t border-primary-300">
+                        <span className="text-secondary-900 font-semibold">Total Amount:</span>
+                        <span className="text-2xl font-bold text-primary-600">₹{total.toFixed(2)}</span>
+                      </div>
                     </div>
 
                     <button
@@ -758,15 +815,25 @@ export default function CheckoutPage() {
                 <div className="space-y-2 border-t border-secondary-200 pt-4">
                   <div className="flex justify-between">
                     <span className="text-secondary-900">Subtotal</span>
-                    <span className="text-secondary-900">₹{subtotal}</span>
+                    <span className="text-secondary-900">₹{subtotal.toFixed(2)}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-green-600">
+                      <span className="font-medium">Discount ({appliedCoupon.code})</span>
+                      <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-secondary-900">Delivery</span>
-                    <span className="text-secondary-900">{deliveryFee === 0 ? "Free" : `₹${deliveryFee}`}</span>
+                    <span className="text-secondary-900">{deliveryFee === 0 ? "Free" : `₹${deliveryFee.toFixed(2)}`}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary-900">GST ({gstPercentage}%)</span>
+                    <span className="text-secondary-900">₹{gstAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold border-t border-secondary-200 pt-2">
                     <span className="text-secondary-900">Total</span>
-                    <span className="text-secondary-900">₹{total}</span>
+                    <span className="text-primary-600">₹{total.toFixed(2)}</span>
                   </div>
                 </div>
 

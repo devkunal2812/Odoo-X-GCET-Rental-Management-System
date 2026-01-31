@@ -71,9 +71,20 @@ export const couponSchema = z.object({
   code: z.string().min(1),
   discountType: z.enum(["PERCENTAGE", "FLAT"]),
   value: z.number().positive(),
-  validFrom: z.string().datetime(),
-  validTo: z.string().datetime(),
+  validFrom: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format",
+  }),
+  validTo: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format",
+  }),
   maxUses: z.number().int().positive().optional(),
+}).refine((data) => {
+  const from = new Date(data.validFrom);
+  const to = new Date(data.validTo);
+  return to > from;
+}, {
+  message: "validTo must be after validFrom",
+  path: ["validTo"],
 });
 
 export const emailVerificationSchema = z.object({

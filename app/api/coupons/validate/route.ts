@@ -4,20 +4,35 @@ import { prisma } from "@/app/lib/prisma";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, orderAmount } = body;
+    const { code, orderAmount, vendorId } = body;
+
+    if (!code || !orderAmount || !vendorId) {
+      return NextResponse.json(
+        { error: "code, orderAmount, and vendorId are required" },
+        { status: 400 }
+      );
+    }
 
     const coupon = await prisma.coupon.findFirst({
       where: {
         code,
+        vendorId, // Coupon must belong to the vendor
         isActive: true,
         validFrom: { lte: new Date() },
         validTo: { gte: new Date() },
+      },
+      include: {
+        vendor: {
+          select: {
+            companyName: true,
+          },
+        },
       },
     });
 
     if (!coupon) {
       return NextResponse.json(
-        { error: "Invalid or expired coupon" },
+        { error: "Invalid, expired, or coupon not applicable for this vendor" },
         { status: 404 }
       );
     }
@@ -38,6 +53,9 @@ export async function POST(request: NextRequest) {
       discount = coupon.value;
     }
 
+    // Ensure discount doesn't exceed order amount
+    discount = Math.min(discount, orderAmount);
+
     return NextResponse.json({
       success: true,
       coupon: {
@@ -45,6 +63,7 @@ export async function POST(request: NextRequest) {
         code: coupon.code,
         discountType: coupon.discountType,
         value: coupon.value,
+        vendorName: coupon.vendor.companyName,
       },
       discount,
       finalAmount: orderAmount - discount,

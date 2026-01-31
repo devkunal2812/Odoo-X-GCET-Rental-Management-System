@@ -74,7 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Small delay to ensure state is updated
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Redirect based on role
+        // Check for redirect path in localStorage
+        const redirectPath = localStorage.getItem('redirectAfterLogin');
+        if (redirectPath) {
+          localStorage.removeItem('redirectAfterLogin');
+          window.location.href = redirectPath;
+          return;
+        }
+        
+        // Default redirect based on role
         switch (response.user.role) {
           case 'ADMIN':
             window.location.href = '/admin/dashboard';

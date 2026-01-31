@@ -447,6 +447,7 @@ export interface InvoiceDetailResponse {
 export interface Coupon {
   id: string;
   code: string;
+  vendorId: string;
   discountType: string;
   value: number;
   validFrom: string;
@@ -454,11 +455,15 @@ export interface Coupon {
   isActive: boolean;
   maxUses?: number;
   usedCount: number;
+  createdAt: string;
+  updatedAt: string;
+  vendor?: VendorProfile;
 }
 
 export interface ValidateCouponRequest {
   code: string;
   orderAmount: number;
+  vendorId: string;
 }
 
 export interface ValidateCouponResponse {

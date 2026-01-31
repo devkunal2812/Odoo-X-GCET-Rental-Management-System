@@ -10,9 +10,13 @@ export async function POST(request: NextRequest) {
   try {
     const { amount, currency = 'INR', receipt } = await request.json();
 
+    // Razorpay expects amount in paise (smallest currency unit)
+    // Round to ensure it's an integer
+    const amountInPaise = Math.round(amount * 100);
+
     // Create order with Razorpay
     const order = await razorpay.orders.create({
-      amount: amount * 100, // Razorpay expects amount in paise (smallest currency unit)
+      amount: amountInPaise,
       currency,
       receipt,
       payment_capture: 1, // Auto capture payment

@@ -113,7 +113,8 @@ export default function ProductDetailPage() {
         id: product.id,
         name: product.name,
         image: '/api/placeholder/400/300',
-        vendor: vendorName
+        vendor: vendorName,
+        vendorId: product.vendorId
       },
       quantity,
       rentalDuration,

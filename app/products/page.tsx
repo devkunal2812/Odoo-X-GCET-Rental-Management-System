@@ -138,7 +138,8 @@ export default function ProductsPage() {
         id: product.id,
         name: product.name,
         image: '/api/placeholder/400/300',
-        vendor: product.vendor?.companyName || 'Unknown Vendor'
+        vendor: product.vendor?.companyName || 'Unknown Vendor',
+        vendorId: product.vendorId
       },
       quantity: 1,
       rentalDuration: 1,

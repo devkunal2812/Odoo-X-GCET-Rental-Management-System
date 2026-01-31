@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
 import { TrashIcon, MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { ShoppingCartIcon } from "@heroicons/react/24/outline";
+import { useAuth } from "../../contexts/AuthContext";
 import { 
   getCartItems, 
   updateCartItemQuantity, 
@@ -14,9 +16,12 @@ import {
 } from "../../lib/cart";
 
 export default function CartPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount: number} | null>(null);
+  const [gstPercentage, setGstPercentage] = useState(18); // Default 18% GST
 
   // Load cart items from localStorage
   useEffect(() => {
@@ -39,6 +44,25 @@ export default function CartPage() {
     };
   }, []);
 
+  // Fetch GST percentage from settings
+  useEffect(() => {
+    const fetchGSTSettings = async () => {
+      try {
+        const response = await fetch('/api/settings/public');
+        const data = await response.json();
+        
+        if (data.success && data.settings.gst_percentage) {
+          setGstPercentage(data.settings.gst_percentage);
+        }
+      } catch (error) {
+        console.error('Error fetching GST settings:', error);
+        // Keep default 18% if fetch fails
+      }
+    };
+
+    fetchGSTSettings();
+  }, []);
+
   const updateQuantity = (itemId: string, newQuantity: number) => {
     updateCartItemQuantity(itemId, newQuantity);
   };
@@ -51,13 +75,50 @@ export default function CartPage() {
     removeFromCart(itemId); 
   };
 
-  const applyCoupon = () => {
-    // Mock coupon validation
-    if (couponCode.toLowerCase() === "save10") {
-      setAppliedCoupon({ code: couponCode, discount: 0.1 });
-      setCouponCode("");
-    } else {
-      alert("Invalid coupon code");
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      alert("Please enter a coupon code");
+      return;
+    }
+
+    // Get the vendor ID from the first cart item (assuming single vendor per cart)
+    if (cartItems.length === 0) {
+      alert("Your cart is empty");
+      return;
+    }
+
+    const vendorId = cartItems[0].product.vendorId;
+    
+    if (!vendorId) {
+      alert("Unable to validate coupon. Please remove items from cart and add them again.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode,
+          orderAmount: subtotal,
+          vendorId: vendorId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAppliedCoupon({ 
+          code: couponCode, 
+          discount: data.discount 
+        });
+        setCouponCode("");
+      } else {
+        alert(data.error || "Invalid coupon code");
+      }
+    } catch (error) {
+      console.error("Error validating coupon:", error);
+      alert("Failed to validate coupon. Please try again.");
     }
   };
 
@@ -65,12 +126,30 @@ export default function CartPage() {
     setAppliedCoupon(null);
   };
 
+  const handleCheckout = () => {
+    if (!user) {
+      // Save current path to redirect back after login
+      localStorage.setItem('redirectAfterLogin', '/checkout');
+      router.push('/login');
+    } else {
+      // Save coupon data to localStorage for checkout
+      if (appliedCoupon) {
+        localStorage.setItem('appliedCoupon', JSON.stringify(appliedCoupon));
+      } else {
+        localStorage.removeItem('appliedCoupon');
+      }
+      router.push('/checkout');
+    }
+  };
+
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + (item.unitPrice * item.quantity * item.rentalDuration);
   }, 0);
 
-  const discountAmount = appliedCoupon ? subtotal * appliedCoupon.discount : 0;
-  const total = subtotal - discountAmount;
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const gstAmount = subtotalAfterDiscount * (gstPercentage / 100);
+  const total = subtotalAfterDiscount + gstAmount;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -275,10 +354,14 @@ export default function CartPage() {
                     </div>
                     {appliedCoupon && (
                       <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-green-100 text-green-700">
-                        <span className="font-medium">💰 Discount ({(appliedCoupon.discount * 100).toFixed(0)}%)</span>
+                        <span className="font-medium">💰 Discount</span>
                         <span className="font-bold">-₹{discountAmount.toFixed(2)}</span>
                       </div>
                     )}
+                    <div className="flex justify-between items-center py-2">
+                      <span className="font-medium text-gray-900">GST ({gstPercentage}%)</span>
+                      <span className="font-bold text-lg text-gray-900">₹{gstAmount.toFixed(2)}</span>
+                    </div>
                     <div className="border-t-2 pt-4 border-gray-100">
                       <div className="flex justify-between items-center">
                         <span className="text-xl font-bold text-gray-900">Total</span>
@@ -288,12 +371,29 @@ export default function CartPage() {
                   </div>
 
                   {/* Checkout Button with gradient */}
-                  <Link
-                    href="/checkout"
-                    className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all hover:shadow-lg transform hover:scale-105 text-center block mb-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                  {!user && !authLoading && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                      <p className="text-sm text-blue-800">
+                        🔐 Please login to proceed with checkout
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleCheckout}
+                    disabled={authLoading}
+                    className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all hover:shadow-lg transform hover:scale-105 text-center block mb-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    🚀 Proceed to Checkout
-                  </Link>
+                    {authLoading ? (
+                      <span className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Loading...
+                      </span>
+                    ) : !user ? (
+                      '🔐 Login to Checkout'
+                    ) : (
+                      '🚀 Proceed to Checkout'
+                    )}
+                  </button>
 
                   {/* Security Note with icon */}
                   <div className="text-center p-3 rounded-lg bg-gray-50">

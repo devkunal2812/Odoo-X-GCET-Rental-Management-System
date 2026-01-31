@@ -54,6 +54,7 @@ model VendorProfile {
   user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   products Product[]
   orders   SaleOrder[]
+  coupons  Coupon[]
 
   @@map("vendor_profiles")
 }
@@ -357,6 +358,7 @@ model RentalPeriodConfig {
 model Coupon {
   id           String    @id @default(uuid())
   code         String    @unique
+  vendorId     String
   discountType String
   value        Float
   validFrom    DateTime
@@ -364,9 +366,13 @@ model Coupon {
   isActive     Boolean   @default(true)
   maxUses      Int?
   usedCount    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
+  vendor VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   orders SaleOrder[]
 
+  @@index([vendorId, isActive])
   @@map("coupons")
 }
 

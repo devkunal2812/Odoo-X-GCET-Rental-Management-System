@@ -8,6 +8,7 @@ export interface CartItem {
     name: string;
     image: string;
     vendor: string;
+    vendorId: string;
   };
   quantity: number;
   rentalDuration: number;
