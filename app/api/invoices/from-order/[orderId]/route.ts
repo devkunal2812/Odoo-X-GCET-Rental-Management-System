@@ -14,6 +14,16 @@ export const POST = requireRole("VENDOR")(
               product: true,
             },
           },
+          customer: {
+            include: {
+              user: true,
+            },
+          },
+          vendor: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
 
@@ -38,10 +48,25 @@ export const POST = requireRole("VENDOR")(
         );
       }
 
-      // Generate invoice number
-      const invoiceNumber = `INV-${Date.now()}`;
+      // Get system settings for tax and invoice configuration
+      const [gstSetting, invoicePrefixSetting, currencySetting] = await Promise.all([
+        prisma.systemSettings.findUnique({ where: { key: "gst_percentage" } }),
+        prisma.systemSettings.findUnique({ where: { key: "invoice_prefix" } }),
+        prisma.systemSettings.findUnique({ where: { key: "currency" } }),
+      ]);
 
-      // Create invoice
+      const gstPercentage = gstSetting ? parseFloat(gstSetting.value) : 18;
+      const invoicePrefix = invoicePrefixSetting?.value || "INV";
+      const currency = currencySetting?.value || "INR";
+
+      // Calculate subtotal (before tax)
+      const subtotal = order.totalAmount / (1 + gstPercentage / 100);
+      const taxAmount = order.totalAmount - subtotal;
+
+      // Generate invoice number with prefix
+      const invoiceNumber = `${invoicePrefix}-${Date.now()}`;
+
+      // Create invoice with detailed breakdown
       const invoice = await prisma.invoice.create({
         data: {
           invoiceNumber,
@@ -59,7 +84,25 @@ export const POST = requireRole("VENDOR")(
           },
         },
         include: {
-          lines: true,
+          lines: {
+            include: {
+              product: true,
+            },
+          },
+          saleOrder: {
+            include: {
+              customer: {
+                include: {
+                  user: true,
+                },
+              },
+              vendor: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -69,8 +112,58 @@ export const POST = requireRole("VENDOR")(
         data: { status: "INVOICED" },
       });
 
-      return NextResponse.json({ success: true, invoice });
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "INVOICE_CREATED",
+          entity: "Invoice",
+          entityId: invoice.id,
+          metadata: JSON.stringify({
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: invoice.totalAmount,
+          }),
+        },
+      });
+
+      // Return invoice with full details for PDF generation
+      return NextResponse.json({
+        success: true,
+        invoice: {
+          ...invoice,
+          // Tax breakdown
+          taxBreakup: {
+            subtotal: subtotal.toFixed(2),
+            gstPercentage,
+            gstAmount: taxAmount.toFixed(2),
+            discount: order.discount,
+            grandTotal: order.totalAmount.toFixed(2),
+          },
+          // Company details
+          vendorDetails: {
+            companyName: order.vendor.companyName,
+            gstin: order.vendor.gstin,
+            address: order.vendor.address,
+            email: order.vendor.user.email,
+          },
+          // Customer details
+          customerDetails: {
+            name: `${order.customer.user.firstName} ${order.customer.user.lastName}`,
+            email: order.customer.user.email,
+            phone: order.customer.phone,
+            address: order.customer.defaultAddress,
+          },
+          // Rental details
+          rentalPeriod: {
+            startDate: order.startDate,
+            endDate: order.endDate,
+          },
+          currency,
+        },
+      });
     } catch (error: any) {
+      console.error("Invoice creation error:", error);
       return NextResponse.json(
         { error: error.message || "Invoice creation failed" },
         { status: 400 }

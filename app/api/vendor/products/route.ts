@@ -8,6 +8,9 @@ export const POST = requireRole("VENDOR")(async (request: NextRequest, { user }:
     const body = await request.json();
     const data = productSchema.parse(body);
 
+    // Prepare extra options as JSON string
+    const extraOptions = data.extraOptions ? JSON.stringify(data.extraOptions) : "[]";
+
     const product = await prisma.product.create({
       data: {
         vendorId: user.vendorProfile.id,
@@ -15,6 +18,7 @@ export const POST = requireRole("VENDOR")(async (request: NextRequest, { user }:
         description: data.description,
         productType: data.productType,
         isRentable: data.isRentable,
+        extraOptions,
         pricing: {
           create: data.pricing,
         },
@@ -23,6 +27,16 @@ export const POST = requireRole("VENDOR")(async (request: NextRequest, { user }:
             quantityOnHand: data.quantityOnHand,
           },
         },
+        // Create variants if provided
+        ...(data.variants && data.variants.length > 0 ? {
+          variants: {
+            create: data.variants.map(variant => ({
+              name: variant.name,
+              sku: variant.sku,
+              priceModifier: variant.priceModifier,
+            })),
+          },
+        } : {}),
       },
       include: {
         pricing: {
@@ -31,11 +45,23 @@ export const POST = requireRole("VENDOR")(async (request: NextRequest, { user }:
           },
         },
         inventory: true,
+        variants: true,
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "PRODUCT_CREATED",
+        entity: "Product",
+        entityId: product.id,
       },
     });
 
     return NextResponse.json({ success: true, product });
   } catch (error: any) {
+    console.error("Product creation error:", error);
     return NextResponse.json(
       { error: error.message || "Product creation failed" },
       { status: 400 }

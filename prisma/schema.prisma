@@ -15,15 +15,20 @@ datasource db {
 // ============================================
 
 model User {
-  id            String   @id @default(uuid())
-  firstName     String
-  lastName      String
-  email         String   @unique
-  passwordHash  String
-  role          Role     @default(CUSTOMER)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  firstName             String
+  lastName              String
+  email                 String   @unique
+  passwordHash          String
+  role                  Role     @default(CUSTOMER)
+  isActive              Boolean  @default(true)
+  emailVerified         Boolean  @default(false)
+  emailVerificationToken String?  @unique
+  emailVerificationExpiry DateTime?
+  passwordResetToken    String?  @unique
+  passwordResetExpiry   DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   vendorProfile   VendorProfile?
   customerProfile CustomerProfile?
@@ -77,6 +82,7 @@ model Product {
   productType ProductType @default(GOODS)
   isRentable  Boolean     @default(true)
   published   Boolean     @default(false)
+  extraOptions String?    @default("[]")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -167,6 +173,7 @@ model ProductAttributeValue {
 model ProductVariant {
   id            String  @id @default(uuid())
   productId     String
+  name          String
   sku           String  @unique
   priceModifier Float   @default(0)
 

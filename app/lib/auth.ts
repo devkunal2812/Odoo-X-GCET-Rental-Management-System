@@ -70,3 +70,17 @@ export function requireRole(...roles: string[]) {
     });
   };
 }
+
+/**
+ * Generate a secure random token for email verification or password reset
+ */
+export function generateSecureToken(): string {
+  return require('crypto').randomBytes(32).toString('hex');
+}
+
+/**
+ * Calculate token expiry (default 24 hours from now)
+ */
+export function getTokenExpiry(hours: number = 24): Date {
+  return new Date(Date.now() + hours * 60 * 60 * 1000);
+}

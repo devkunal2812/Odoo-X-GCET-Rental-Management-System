@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { hashPassword, generateToken } from "@/app/lib/auth";
+import { hashPassword, generateToken, generateSecureToken, getTokenExpiry } from "@/app/lib/auth";
 import { signupSchema } from "@/app/lib/validation";
 
 export async function POST(request: NextRequest) {
@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await hashPassword(data.password);
 
-    // Create user with profile
+    // Generate email verification token
+    const emailVerificationToken = generateSecureToken();
+    const emailVerificationExpiry = getTokenExpiry(24); // 24 hours
+
+    // Create user with profile based on role
     const user = await prisma.user.create({
       data: {
         firstName: data.firstName,
@@ -44,11 +48,13 @@ export async function POST(request: NextRequest) {
         email: data.email,
         passwordHash,
         role: data.role,
+        emailVerificationToken,
+        emailVerificationExpiry,
         ...(data.role === "VENDOR"
           ? {
               vendorProfile: {
                 create: {
-                  companyName: data.companyName,
+                  companyName: data.companyName!,
                   gstin: data.gstin,
                 },
               },
@@ -67,7 +73,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate JWT
+    // TODO: Send verification email
+    // For now, we'll just log the token
+    console.log(`Email verification token for ${user.email}: ${emailVerificationToken}`);
+    console.log(`Verification link: http://localhost:3000/api/auth/verify-email?token=${emailVerificationToken}`);
+
+    // Generate JWT (but user can't login until email is verified)
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -86,21 +97,25 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
+      message: "Signup successful. Please verify your email to login.",
       user: {
         id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        emailVerified: user.emailVerified,
       },
+      verificationToken: emailVerificationToken, // Remove in production
     });
 
-    response.cookies.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    // Don't set auth cookie until email is verified
+    // response.cookies.set("auth_token", token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === "production",
+    //   sameSite: "lax",
+    //   maxAge: 60 * 60 * 24 * 7, // 7 days
+    // });
 
     return response;
   } catch (error: any) {

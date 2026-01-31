@@ -24,6 +24,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        { error: "Please verify your email before logging in" },
+        { status: 403 }
+      );
+    }
+
     // Verify password
     const isValid = await verifyPassword(data.password, user.passwordHash);
     if (!isValid) {

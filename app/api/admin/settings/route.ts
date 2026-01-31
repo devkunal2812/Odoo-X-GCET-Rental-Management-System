@@ -176,6 +176,9 @@ export const PUT = requireRole("ADMIN")(
 function getSettingDescription(key: string): string {
   const descriptions: Record<string, string> = {
     gst_percentage: "GST/Tax percentage applied to invoices",
+    platform_fee: "Platform fee percentage",
+    invoice_prefix: "Invoice number prefix (e.g., INV)",
+    currency: "Currency code (e.g., USD, INR)",
     late_fee_rate: "Late fee rate per day (as decimal, e.g., 0.1 = 10%)",
     late_fee_grace_period_hours: "Grace period in hours before late fees apply",
     company_name: "Company name for invoices",
