@@ -50,7 +50,7 @@ const recentOrders = [
     id: "ORD-001",
     customer: "John Smith",
     product: "Professional Camera Kit",
-    amount: "$75",
+    amount: "₹75",
     status: "confirmed" as const,
     date: "2024-01-20"
   },
@@ -58,7 +58,7 @@ const recentOrders = [
     id: "ORD-002", 
     customer: "Sarah Johnson",
     product: "Power Drill Set",
-    amount: "$160",
+    amount: "₹160",
     status: "invoiced" as const,
     date: "2024-01-19"
   },
@@ -66,7 +66,7 @@ const recentOrders = [
     id: "ORD-003",
     customer: "Mike Davis",
     product: "Party Sound System",
-    amount: "$200",
+    amount: "₹200",
     status: "quotation" as const,
     date: "2024-01-18"
   },
@@ -74,7 +74,7 @@ const recentOrders = [
     id: "ORD-004",
     customer: "Lisa Wilson",
     product: "Mountain Bike",
-    amount: "$90",
+    amount: "₹90",
     status: "confirmed" as const,
     date: "2024-01-17"
   }
@@ -204,9 +204,20 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <p className="font-medium text-secondary-900">{order.id}</p>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                        {(order.status === 'invoiced' || order.status === 'confirmed') && (
+                          <button
+                            onClick={() => handleDownloadInvoice(order.id)}
+                            className="p-1 rounded hover:bg-gray-100 transition-colors text-primary-600"
+                            title="Download Invoice"
+                          >
+                            <ArrowDownTrayIcon className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm text-secondary-600">{order.customer}</p>
                     <p className="text-sm text-secondary-600">{order.product}</p>
