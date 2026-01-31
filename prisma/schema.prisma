@@ -44,18 +44,27 @@ enum Role {
 }
 
 model VendorProfile {
-  id          String  @id @default(uuid())
-  userId      String  @unique
+  id          String            @id @default(uuid())
+  userId      String            @unique
   companyName String
   gstin       String?
   logoUrl     String?
   address     String?
+  category    ProductCategory?  // New field for vendor's primary product category
 
   user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   products Product[]
   orders   SaleOrder[]
 
   @@map("vendor_profiles")
+}
+
+enum ProductCategory {
+  ELECTRONICS
+  FURNITURE
+  VEHICLES
+  GYM_AND_SPORTS_EQUIPMENTS
+  CONSTRUCTION_TOOLS
 }
 
 model CustomerProfile {

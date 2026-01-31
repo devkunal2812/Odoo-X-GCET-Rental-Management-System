@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
                 create: {
                   companyName: data.companyName!,
                   gstin: data.gstin,
+                  category: data.category,
                 },
               },
             }

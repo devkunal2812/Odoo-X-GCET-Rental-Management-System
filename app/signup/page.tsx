@@ -12,7 +12,8 @@ import {
   DocumentTextIcon,
   TagIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  RectangleStackIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/contexts/AuthContext";
 import type { SignupRequest } from "@/types/api";
@@ -29,6 +30,7 @@ export default function SignupPage() {
     email: "",
     companyName: "",
     gstin: "",
+    category: "",
     password: "",
     confirmPassword: "",
     couponCode: "",
@@ -82,6 +84,11 @@ export default function SignupPage() {
     // Company name validation (only for vendors)
     if (userType === "vendor" && !formData.companyName.trim()) {
       newErrors.companyName = "Company name is required for vendors";
+    }
+
+    // Category validation (only for vendors)
+    if (userType === "vendor" && !formData.category) {
+      newErrors.category = "Product category is required for vendors";
     }
 
     // GSTIN validation for vendors
@@ -147,6 +154,7 @@ export default function SignupPage() {
         ...(userType === 'vendor' ? {
           companyName: formData.companyName,
           gstin: formData.gstin || undefined,
+          category: formData.category as any,
         } : {}),
         couponCode: formData.couponCode || undefined,
       };
@@ -415,6 +423,39 @@ export default function SignupPage() {
                   {errors.companyName && (
                     <p className="mt-1 text-sm text-error-600">{errors.companyName}</p>
                   )}
+                </div>
+              )}
+
+              {/* Product Category Field (Vendors Only) */}
+              {userType === "vendor" && (
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-secondary-900">
+                    Product Category *
+                  </label>
+                  <div className="relative">
+                    <RectangleStackIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary-400" />
+                    <select
+                      required
+                      value={formData.category}
+                      onChange={(e) => handleInputChange("category", e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white ${
+                        errors.category ? "border-error-500" : "border-secondary-300"
+                      }`}
+                    >
+                      <option value="">Select your primary product category</option>
+                      <option value="ELECTRONICS">📱 Electronics</option>
+                      <option value="FURNITURE">🪑 Furniture</option>
+                      <option value="VEHICLES">🚗 Vehicles</option>
+                      <option value="GYM_AND_SPORTS_EQUIPMENTS">🏋️ Gym & Sports Equipments</option>
+                      <option value="CONSTRUCTION_TOOLS">🔨 Construction Tools</option>
+                    </select>
+                  </div>
+                  {errors.category && (
+                    <p className="mt-1 text-sm text-error-600">{errors.category}</p>
+                  )}
+                  <p className="mt-1 text-xs text-secondary-500">
+                    Choose the main category of products you'll be renting out
+                  </p>
                 </div>
               )}
 

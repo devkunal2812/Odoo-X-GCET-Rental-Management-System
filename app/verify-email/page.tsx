@@ -1,29 +1,27 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import Link from 'next/link';
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { 
   CheckCircleIcon, 
   ExclamationCircleIcon, 
   ClockIcon,
-  EnvelopeIcon,
   ArrowRightIcon
 } from "@heroicons/react/24/outline";
+import Link from 'next/link';
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { verifyEmail, loading, error } = useAuth();
-  const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
+  const { verifyEmail } = useAuth();
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'already-verified'>('loading');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
 
     if (success) {
       switch (success) {
@@ -58,14 +56,33 @@ export default function VerifyEmailPage() {
           setMessage('Email verification failed. Please try again or contact support.');
       }
     } else if (token) {
-      // Token provided but no success/error - verification is in progress
-      setMessage('Verifying your email address...');
+      // Token provided but no success/error - start verification
+      handleTokenVerification(token);
     } else {
       // No parameters - show manual verification form
       setStatus('loading');
       setMessage('Enter your verification token below or check your email for the verification link.');
     }
   }, [searchParams]);
+
+  const handleTokenVerification = async (token: string) => {
+    try {
+      setStatus('loading');
+      setMessage('Verifying your email address...');
+      
+      await verifyEmail({ token });
+      setStatus('success');
+      setMessage('Email verified successfully!');
+      
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        router.push('/login?message=Email verified successfully. You can now login.');
+      }, 3000);
+    } catch (err) {
+      setStatus('error');
+      setMessage('Email verification failed. Please try again or contact support.');
+    }
+  };
 
   const handleManualVerification = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -78,22 +95,8 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    const verify = async () => {
-      try {
-        await verifyEmail({ token });
-        setVerificationStatus('success');
-        
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/login?message=Email verified successfully. You can now login.');
-        }, 3000);
-      } catch (err) {
-        setVerificationStatus('error');
-      }
-    };
-
-    verify();
-  }, [searchParams, verifyEmail, router]);
+    await handleTokenVerification(token);
+  };
 
   return (
     <div className="min-h-screen bg-[#D3DAD9] flex items-center justify-center p-4">
@@ -174,10 +177,9 @@ export default function VerifyEmailPage() {
                   </div>
                   <button
                     type="submit"
-                    disabled={status === 'loading'}
-                    className="w-full px-6 py-3 bg-[#715A5A] text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
+                    className="w-full px-6 py-3 bg-[#715A5A] text-white rounded-lg hover:opacity-90 transition-colors"
                   >
-                    {status === 'loading' ? 'Verifying...' : 'Verify Email'}
+                    Verify Email
                   </button>
                 </form>
               </div>
