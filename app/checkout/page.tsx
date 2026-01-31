@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { ShoppingCartIcon, HeartIcon, UserIcon, CheckIcon } from "@heroicons/react/24/outline";
+import Header from "../../components/Header";
+import { CheckIcon } from "@heroicons/react/24/outline";
 
 // Mock cart data
 const mockCartItems = [
@@ -107,483 +107,382 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--eggshell)" }}>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-secondary-50">
+      <Header />
+      
+      <div className="pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <h1 className="text-3xl font-bold mb-8 text-secondary-900">Checkout</h1>
+
+          {/* Progress Steps */}
+          <div className="mb-8">
             <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold" style={{ color: "var(--deep-space-blue)" }}>
-                RentMarket
-              </Link>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link href="/wishlist" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <HeartIcon className="h-6 w-6" />
-              </Link>
-              <Link href="/cart" className="hover:opacity-80 transition-opacity relative" style={{ color: "var(--blue-slate)" }}>
-                <ShoppingCartIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  {mockCartItems.length}
-                </span>
-              </Link>
-              <Link href="/login" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <UserIcon className="h-6 w-6" />
-              </Link>
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex items-center">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                    step <= currentStep 
+                      ? 'bg-primary-600 text-white' 
+                      : 'bg-secondary-300 text-secondary-600'
+                  }`}>
+                    {step < currentStep ? <CheckIcon className="h-5 w-5" /> : step}
+                  </div>
+                  <div className={`ml-2 text-sm font-medium ${
+                    step <= currentStep ? 'text-primary-600' : 'text-secondary-500'
+                  }`}>
+                    {step === 1 && "Delivery"}
+                    {step === 2 && "Payment"}
+                    {step === 3 && "Review"}
+                  </div>
+                  {step < 3 && (
+                    <div className={`mx-4 h-0.5 w-16 ${
+                      step < currentStep ? 'bg-primary-600' : 'bg-secondary-300'
+                    }`} />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-8" style={{ color: "var(--ink-black)" }}>Checkout</h1>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              {/* Step 1: Delivery */}
+              {currentStep === 1 && (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-xl font-semibold mb-6 text-secondary-900">Delivery Information</h2>
 
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  step <= currentStep ? 'text-white' : ''
-                }`} style={{
-                  backgroundColor: step <= currentStep ? "var(--deep-space-blue)" : "var(--dusty-denim)",
-                  color: step <= currentStep ? "var(--eggshell)" : "var(--blue-slate)"
-                }}>
-                  {step < currentStep ? <CheckIcon className="h-5 w-5" /> : step}
-                </div>
-                <div className={`ml-2 text-sm font-medium ${
-                  step <= currentStep ? '' : ''
-                }`} style={{
-                  color: step <= currentStep ? "var(--deep-space-blue)" : "var(--blue-slate)"
-                }}>
-                  {step === 1 && "Delivery"}
-                  {step === 2 && "Payment"}
-                  {step === 3 && "Review"}
-                </div>
-                {step < 3 && (
-                  <div className={`mx-4 h-0.5 w-16`} style={{
-                    backgroundColor: step < currentStep ? "var(--deep-space-blue)" : "var(--dusty-denim)"
-                  }} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Step 1: Delivery */}
-            {currentStep === 1 && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--ink-black)" }}>Delivery Information</h2>
-
-                {/* Delivery Method */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-4" style={{ color: "var(--ink-black)" }}>Delivery Method</h3>
-                  <div className="space-y-3">
-                    {deliveryMethods.map((method) => (
-                      <label key={method.id} className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:opacity-80"
-                             style={{ borderColor: deliveryMethod === method.id ? "var(--deep-space-blue)" : "var(--dusty-denim)" }}>
-                        <input
-                          type="radio"
-                          name="deliveryMethod"
-                          value={method.id}
-                          checked={deliveryMethod === method.id}
-                          onChange={(e) => setDeliveryMethod(e.target.value)}
-                          className="mr-3"
-                          style={{ accentColor: "var(--deep-space-blue)" }}
-                        />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium" style={{ color: "var(--ink-black)" }}>{method.name}</p>
-                              <p className="text-sm" style={{ color: "var(--blue-slate)" }}>{method.description}</p>
-                              <p className="text-sm" style={{ color: "var(--blue-slate)" }}>{method.estimatedTime}</p>
-                            </div>
-                            <span className="font-semibold" style={{ color: "var(--ink-black)" }}>
-                              {method.price === 0 ? "Free" : `$${method.price}`}
-                            </span>
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Delivery Address */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-4" style={{ color: "var(--ink-black)" }}>Delivery Address</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="First Name"
-                      value={formData.deliveryFirstName}
-                      onChange={(e) => handleInputChange("deliveryFirstName", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Last Name"
-                      value={formData.deliveryLastName}
-                      onChange={(e) => handleInputChange("deliveryLastName", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={formData.deliveryEmail}
-                      onChange={(e) => handleInputChange("deliveryEmail", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone"
-                      value={formData.deliveryPhone}
-                      onChange={(e) => handleInputChange("deliveryPhone", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Street Address"
-                      value={formData.deliveryStreet}
-                      onChange={(e) => handleInputChange("deliveryStreet", e.target.value)}
-                      className="md:col-span-2 border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="City"
-                      value={formData.deliveryCity}
-                      onChange={(e) => handleInputChange("deliveryCity", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="State"
-                      value={formData.deliveryState}
-                      onChange={(e) => handleInputChange("deliveryState", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="ZIP Code"
-                      value={formData.deliveryZip}
-                      onChange={(e) => handleInputChange("deliveryZip", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <select
-                      value={formData.deliveryCountry}
-                      onChange={(e) => handleInputChange("deliveryCountry", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    >
-                      <option>United States</option>
-                      <option>Canada</option>
-                      <option>United Kingdom</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Billing Address Toggle */}
-                <div className="mb-6">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={sameAsBilling}
-                      onChange={(e) => setSameAsBilling(e.target.checked)}
-                      className="mr-2"
-                      style={{ accentColor: "var(--deep-space-blue)" }}
-                    />
-                    <span style={{ color: "var(--ink-black)" }}>Billing address same as delivery address</span>
-                  </label>
-                </div>
-
-                {/* Billing Address (if different) */}
-                {!sameAsBilling && (
+                  {/* Delivery Method */}
                   <div className="mb-6">
-                    <h3 className="font-medium mb-4">Billing Address</h3>
+                    <h3 className="font-medium mb-4 text-secondary-900">Delivery Method</h3>
+                    <div className="space-y-3">
+                      {deliveryMethods.map((method) => (
+                        <label key={method.id} className={`flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-secondary-50 transition-colors ${
+                          deliveryMethod === method.id ? 'border-primary-500 bg-primary-50' : 'border-secondary-300'
+                        }`}>
+                          <input
+                            type="radio"
+                            name="deliveryMethod"
+                            value={method.id}
+                            checked={deliveryMethod === method.id}
+                            onChange={(e) => setDeliveryMethod(e.target.value)}
+                            className="mr-3 accent-primary-600"
+                          />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium text-secondary-900">{method.name}</p>
+                                <p className="text-sm text-secondary-600">{method.description}</p>
+                                <p className="text-sm text-secondary-600">{method.estimatedTime}</p>
+                              </div>
+                              <span className="font-semibold text-secondary-900">
+                                {method.price === 0 ? "Free" : `$${method.price}`}
+                              </span>
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Delivery Address */}
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-4 text-secondary-900">Delivery Address</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <input
                         type="text"
                         placeholder="First Name"
-                        value={formData.billingFirstName}
-                        onChange={(e) => handleInputChange("billingFirstName", e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryFirstName}
+                        onChange={(e) => handleInputChange("deliveryFirstName", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="text"
                         placeholder="Last Name"
-                        value={formData.billingLastName}
-                        onChange={(e) => handleInputChange("billingLastName", e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryLastName}
+                        onChange={(e) => handleInputChange("deliveryLastName", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={formData.deliveryEmail}
+                        onChange={(e) => handleInputChange("deliveryEmail", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Phone"
+                        value={formData.deliveryPhone}
+                        onChange={(e) => handleInputChange("deliveryPhone", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="text"
                         placeholder="Street Address"
-                        value={formData.billingStreet}
-                        onChange={(e) => handleInputChange("billingStreet", e.target.value)}
-                        className="md:col-span-2 border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryStreet}
+                        onChange={(e) => handleInputChange("deliveryStreet", e.target.value)}
+                        className="md:col-span-2 border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="text"
                         placeholder="City"
-                        value={formData.billingCity}
-                        onChange={(e) => handleInputChange("billingCity", e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryCity}
+                        onChange={(e) => handleInputChange("deliveryCity", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="text"
                         placeholder="State"
-                        value={formData.billingState}
-                        onChange={(e) => handleInputChange("billingState", e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryState}
+                        onChange={(e) => handleInputChange("deliveryState", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="text"
                         placeholder="ZIP Code"
-                        value={formData.billingZip}
-                        onChange={(e) => handleInputChange("billingZip", e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryZip}
+                        onChange={(e) => handleInputChange("deliveryZip", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <select
-                        value={formData.billingCountry}
-                        onChange={(e) => handleInputChange("billingCountry", e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        value={formData.deliveryCountry}
+                        onChange={(e) => handleInputChange("deliveryCountry", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       >
-                        <option>United States</option>
-                        <option>Canada</option>
-                        <option>United Kingdom</option>
+                        <option value="United States">United States</option>
+                        <option value="Canada">Canada</option>
+                        <option value="United Kingdom">United Kingdom</option>
                       </select>
                     </div>
                   </div>
+
+                  {/* Billing Address Toggle */}
+                  <div className="mb-6">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={sameAsBilling}
+                        onChange={(e) => setSameAsBilling(e.target.checked)}
+                        className="mr-2 accent-primary-600"
+                      />
+                      <span className="text-secondary-900">Billing address same as delivery address</span>
+                    </label>
+                  </div>
+
+                  {/* Billing Address (if different) */}
+                  {!sameAsBilling && (
+                    <div className="mb-6">
+                      <h3 className="font-medium mb-4 text-secondary-900">Billing Address</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          placeholder="First Name"
+                          value={formData.billingFirstName}
+                          onChange={(e) => handleInputChange("billingFirstName", e.target.value)}
+                          className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Last Name"
+                          value={formData.billingLastName}
+                          onChange={(e) => handleInputChange("billingLastName", e.target.value)}
+                          className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Street Address"
+                          value={formData.billingStreet}
+                          onChange={(e) => handleInputChange("billingStreet", e.target.value)}
+                          className="md:col-span-2 border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="City"
+                          value={formData.billingCity}
+                          onChange={(e) => handleInputChange("billingCity", e.target.value)}
+                          className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="State"
+                          value={formData.billingState}
+                          onChange={(e) => handleInputChange("billingState", e.target.value)}
+                          className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="ZIP Code"
+                          value={formData.billingZip}
+                          onChange={(e) => handleInputChange("billingZip", e.target.value)}
+                          className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <select
+                          value={formData.billingCountry}
+                          onChange={(e) => handleInputChange("billingCountry", e.target.value)}
+                          className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        >
+                          <option value="United States">United States</option>
+                          <option value="Canada">Canada</option>
+                          <option value="United Kingdom">United Kingdom</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 2: Payment */}
+              {currentStep === 2 && (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-xl font-semibold mb-6 text-secondary-900">Payment Information</h2>
+
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      placeholder="Card Number"
+                      value={formData.cardNumber}
+                      onChange={(e) => handleInputChange("cardNumber", e.target.value)}
+                      className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="MM/YY"
+                        value={formData.expiryDate}
+                        onChange={(e) => handleInputChange("expiryDate", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                      <input
+                        type="text"
+                        placeholder="CVV"
+                        value={formData.cvv}
+                        onChange={(e) => handleInputChange("cvv", e.target.value)}
+                        className="border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Name on Card"
+                      value={formData.cardName}
+                      onChange={(e) => handleInputChange("cardName", e.target.value)}
+                      className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.savePayment}
+                        onChange={(e) => handleInputChange("savePayment", e.target.checked)}
+                        className="mr-2 accent-primary-600"
+                      />
+                      <span className="text-secondary-900">Save payment method for future orders</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Review */}
+              {currentStep === 3 && (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-xl font-semibold mb-6 text-secondary-900">Review Order</h2>
+
+                  {/* Order Items */}
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-4 text-secondary-900">Order Items</h3>
+                    <div className="space-y-3">
+                      {mockCartItems.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center py-2 border-b border-secondary-200">
+                          <div>
+                            <p className="font-medium text-secondary-900">{item.product.name}</p>
+                            <p className="text-sm text-secondary-600">
+                              {item.quantity} × {item.rentalDuration} {item.rentalUnit}(s) - {item.product.vendor}
+                            </p>
+                          </div>
+                          <span className="font-semibold text-secondary-900">${item.total}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Delivery Info */}
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-2 text-secondary-900">Delivery Method</h3>
+                    <p className="text-secondary-600">
+                      {deliveryMethods.find(m => m.id === deliveryMethod)?.name}
+                    </p>
+                  </div>
+
+                  {/* Address Info */}
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-2 text-secondary-900">Delivery Address</h3>
+                    <p className="text-secondary-600">
+                      {formData.deliveryFirstName} {formData.deliveryLastName}<br />
+                      {formData.deliveryStreet}<br />
+                      {formData.deliveryCity}, {formData.deliveryState} {formData.deliveryZip}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between mt-6">
+                <button
+                  onClick={handlePreviousStep}
+                  disabled={currentStep === 1}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    currentStep === 1
+                      ? 'cursor-not-allowed opacity-50 bg-secondary-300 text-secondary-500'
+                      : 'bg-secondary-600 text-white hover:bg-secondary-700'
+                  }`}
+                >
+                  Previous
+                </button>
+                
+                {currentStep < 3 ? (
+                  <button
+                    onClick={handleNextStep}
+                    className="px-6 py-2 rounded-lg font-medium text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    onClick={handlePlaceOrder}
+                    className="px-6 py-2 rounded-lg font-medium text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                  >
+                    Place Order
+                  </button>
                 )}
               </div>
-            )}
-
-            {/* Step 2: Payment */}
-            {currentStep === 2 && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--ink-black)" }}>Payment Information</h2>
-
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Card Number"
-                    value={formData.cardNumber}
-                    onChange={(e) => handleInputChange("cardNumber", e.target.value)}
-                    className="w-full border-2 rounded-lg px-3 py-2"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="MM/YY"
-                      value={formData.expiryDate}
-                      onChange={(e) => handleInputChange("expiryDate", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="CVV"
-                      value={formData.cvv}
-                      onChange={(e) => handleInputChange("cvv", e.target.value)}
-                      className="border-2 rounded-lg px-3 py-2"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Name on Card"
-                    value={formData.cardName}
-                    onChange={(e) => handleInputChange("cardName", e.target.value)}
-                    className="w-full border-2 rounded-lg px-3 py-2"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
-                  />
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.savePayment}
-                      onChange={(e) => handleInputChange("savePayment", e.target.checked)}
-                      className="mr-2"
-                      style={{ accentColor: "var(--deep-space-blue)" }}
-                    />
-                    <span style={{ color: "var(--ink-black)" }}>Save payment method for future orders</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Review */}
-            {currentStep === 3 && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--ink-black)" }}>Review Order</h2>
-
-                {/* Order Items */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-4" style={{ color: "var(--ink-black)" }}>Order Items</h3>
-                  <div className="space-y-3">
-                    {mockCartItems.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center py-2 border-b" style={{ borderColor: "var(--dusty-denim)" }}>
-                        <div>
-                          <p className="font-medium" style={{ color: "var(--ink-black)" }}>{item.product.name}</p>
-                          <p className="text-sm" style={{ color: "var(--blue-slate)" }}>
-                            {item.quantity} × {item.rentalDuration} {item.rentalUnit}(s) - {item.product.vendor}
-                          </p>
-                        </div>
-                        <span className="font-semibold" style={{ color: "var(--ink-black)" }}>${item.total}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Delivery Info */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-2" style={{ color: "var(--ink-black)" }}>Delivery Method</h3>
-                  <p style={{ color: "var(--blue-slate)" }}>
-                    {deliveryMethods.find(m => m.id === deliveryMethod)?.name}
-                  </p>
-                </div>
-
-                {/* Address Info */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-2" style={{ color: "var(--ink-black)" }}>Delivery Address</h3>
-                  <p style={{ color: "var(--blue-slate)" }}>
-                    {formData.deliveryFirstName} {formData.deliveryLastName}<br />
-                    {formData.deliveryStreet}<br />
-                    {formData.deliveryCity}, {formData.deliveryState} {formData.deliveryZip}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-6">
-              <button
-                onClick={handlePreviousStep}
-                disabled={currentStep === 1}
-                className={`px-6 py-2 rounded-lg ${
-                  currentStep === 1
-                    ? 'cursor-not-allowed opacity-50'
-                    : 'hover:opacity-80'
-                }`}
-                style={{
-                  backgroundColor: currentStep === 1 ? "var(--dusty-denim)" : "var(--blue-slate)",
-                  color: "var(--eggshell)"
-                }}
-              >
-                Previous
-              </button>
-              
-              {currentStep < 3 ? (
-                <button
-                  onClick={handleNextStep}
-                  className="px-6 py-2 rounded-lg text-white hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: "var(--deep-space-blue)" }}
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  onClick={handlePlaceOrder}
-                  className="px-6 py-2 rounded-lg text-white hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: "var(--deep-space-blue)" }}
-                >
-                  Place Order
-                </button>
-              )}
             </div>
-          </div>
 
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
-              <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--ink-black)" }}>Order Summary</h2>
+            {/* Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
+                <h2 className="text-xl font-semibold mb-6 text-secondary-900">Order Summary</h2>
 
-              <div className="space-y-3 mb-6">
-                {mockCartItems.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span style={{ color: "var(--blue-slate)" }}>{item.product.name} × {item.quantity}</span>
-                    <span style={{ color: "var(--ink-black)" }}>${item.total}</span>
+                <div className="space-y-3 mb-6">
+                  {mockCartItems.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-secondary-600">{item.product.name} × {item.quantity}</span>
+                      <span className="text-secondary-900">${item.total}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-t border-secondary-200 pt-4">
+                  <div className="flex justify-between">
+                    <span className="text-secondary-900">Subtotal</span>
+                    <span className="text-secondary-900">${subtotal}</span>
                   </div>
-                ))}
-              </div>
-
-              <div className="space-y-2 border-t pt-4" style={{ borderColor: "var(--dusty-denim)" }}>
-                <div className="flex justify-between">
-                  <span style={{ color: "var(--ink-black)" }}>Subtotal</span>
-                  <span style={{ color: "var(--ink-black)" }}>${subtotal}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span style={{ color: "var(--ink-black)" }}>Delivery</span>
-                  <span style={{ color: "var(--ink-black)" }}>{deliveryFee === 0 ? "Free" : `$${deliveryFee}`}</span>
-                </div>
-                <div className="flex justify-between text-lg font-semibold border-t pt-2" style={{ borderColor: "var(--dusty-denim)" }}>
-                  <span style={{ color: "var(--ink-black)" }}>Total</span>
-                  <span style={{ color: "var(--ink-black)" }}>${total}</span>
+                  <div className="flex justify-between">
+                    <span className="text-secondary-900">Delivery</span>
+                    <span className="text-secondary-900">{deliveryFee === 0 ? "Free" : `$${deliveryFee}`}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-semibold border-t border-secondary-200 pt-2">
+                    <span className="text-secondary-900">Total</span>
+                    <span className="text-secondary-900">${total}</span>
+                  </div>
                 </div>
               </div>
             </div>
