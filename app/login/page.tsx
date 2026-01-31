@@ -25,7 +25,9 @@ export default function LoginPage() {
     console.log("Login attempt:", { role: selectedRole, ...formData });
     
     // Mock authentication - redirect based on role
-    if (selectedRole === "admin" || selectedRole === "vendor") {
+    if (selectedRole === "admin") {
+      router.push("/admin");
+    } else if (selectedRole === "vendor") {
       router.push("/dashboard");
     } else {
       router.push("/");

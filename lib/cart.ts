@@ -110,6 +110,12 @@ export const updateCartItemDuration = (itemId: string, duration: number): void =
   }
 };
 
+// Check if product is already in cart
+export const isProductInCart = (productId: string): boolean => {
+  const cartItems = getCartItems();
+  return cartItems.some(item => item.productId === productId);
+};
+
 // Get cart total count
 export const getCartCount = (): number => {
   const cartItems = getCartItems();

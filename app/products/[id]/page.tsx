@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Header from "../../../components/Header";
 import { ShoppingCartIcon, HeartIcon, StarIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import { addToCart } from "../../../lib/cart";
+import { addToCart, isProductInCart } from "../../../lib/cart";
 
 // Mock product data
 const mockProduct = {
@@ -84,6 +84,24 @@ export default function ProductDetailPage() {
   const [rentalDuration, setRentalDuration] = useState(1);
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+
+  // Check if product is in cart when component mounts and when cart changes
+  React.useEffect(() => {
+    const checkCartStatus = () => {
+      const inCart = isProductInCart(params.id as string);
+      setIsInCart(inCart);
+    };
+
+    checkCartStatus();
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => checkCartStatus();
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, [params.id]);
 
   const totalPrice = selectedRentalPeriod.price * rentalDuration * quantity;
 
@@ -95,6 +113,8 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
+    if (isInCart) return; // Don't add if already in cart
+    
     console.log('Adding product to cart from detail page:', {
       productId: params.id,
       quantity,
@@ -118,11 +138,13 @@ export default function ProductDetailPage() {
       selectedAttributes
     });
     
-    alert(`${mockProduct.name} added to cart!`);
+    // Show success feedback
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
   };
 
   return (
-    <div className="min-h-screen bg-secondary-50">
+    <div className="min-h-screen bg-secondary-50 mt-10">
       <Header currentPage="products" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -131,7 +153,7 @@ export default function ProductDetailPage() {
           <ol className="flex items-center space-x-2 text-sm bg-white px-4 py-3 rounded-lg shadow-sm">
             <li><Link href="/" className="hover:underline font-medium text-secondary-600">Home</Link></li>
             <li className="text-secondary-400">/</li>
-            <li><Link href="/products" className="hover:underline font-medium text-secondary-600">Products</Link></li>
+       <li><Link href="/products" className="hover:underline font-medium text-secondary-600">Products</Link></li>
             <li className="text-secondary-400">/</li>
             <li className="font-semibold text-secondary-900">{mockProduct.name}</li>
           </ol>
@@ -323,10 +345,25 @@ export default function ProductDetailPage() {
             {/* Add to Cart Button */}
             <button
               onClick={handleAddToCart}
-              className="w-full py-4 px-6 rounded-xl font-bold text-lg text-white transition-all hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-3 bg-gradient-to-r from-primary-600 to-primary-700"
+              disabled={isInCart}
+              className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-3 ${
+                isInCart 
+                  ? 'bg-success-600 text-white cursor-default'
+                  : justAdded
+                    ? 'bg-success-600 text-white'
+                    : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white'
+              }`}
+              style={isInCart || justAdded ? { transform: 'none' } : {}}
             >
               <ShoppingCartIcon className="h-6 w-6" />
-              <span>Add to Cart - ${totalPrice}</span>
+              <span>
+                {isInCart 
+                  ? 'Already in Cart' 
+                  : justAdded 
+                    ? 'Added to Cart!' 
+                    : `Add to Cart - $${totalPrice}`
+                }
+              </span>
             </button>
           </div>
         </div>
