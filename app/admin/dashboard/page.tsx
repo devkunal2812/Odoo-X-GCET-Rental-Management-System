@@ -64,20 +64,22 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#37353E] mb-4"></div>
+        <p className="text-[#715A5A]">Loading dashboard data...</p>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Failed to load dashboard'}</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center bg-white rounded-xl shadow-sm p-8 border border-[#D3DAD9]">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 mb-4 text-lg font-medium">{error || 'Failed to load dashboard'}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            className="px-6 py-3 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors"
           >
             Retry
           </button>
@@ -132,7 +134,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Revenue"
-          value={`₹${stats.metrics.totalRevenue.toFixed(2)}`}
+          value={`Rs. ${stats.metrics.totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           icon={CurrencyDollarIcon}
           color="bg-green-600"
         />
@@ -146,7 +148,7 @@ export default function AdminDashboard() {
           title="Late Returns"
           value={stats.metrics.lateReturns}
           icon={ExclamationTriangleIcon}
-          color="bg-red-500"
+          color={stats.metrics.lateReturns > 0 ? "bg-red-500" : "bg-gray-400"}
         />
       </div>
 
@@ -159,12 +161,25 @@ export default function AdminDashboard() {
       >
         <h3 className="text-lg font-semibold text-[#37353E] mb-4">Orders by Status</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.ordersByStatus.map((statusData) => (
-            <div key={statusData.status} className="p-4 bg-[#D3DAD9] rounded-lg">
-              <p className="text-sm text-[#715A5A] mb-1">{statusData.status}</p>
-              <p className="text-2xl font-bold text-[#37353E]">{statusData.count}</p>
-            </div>
-          ))}
+          {stats.ordersByStatus.map((statusData) => {
+            const statusColors: Record<string, string> = {
+              QUOTATION: 'bg-yellow-100 text-yellow-800',
+              SENT: 'bg-blue-100 text-blue-800',
+              CONFIRMED: 'bg-green-100 text-green-800',
+              INVOICED: 'bg-purple-100 text-purple-800',
+              PICKED_UP: 'bg-orange-100 text-orange-800',
+              RETURNED: 'bg-gray-100 text-gray-800',
+              CANCELLED: 'bg-red-100 text-red-800',
+            };
+            const colorClass = statusColors[statusData.status] || 'bg-gray-100 text-gray-800';
+            
+            return (
+              <div key={statusData.status} className={`p-4 rounded-lg ${colorClass}`}>
+                <p className="text-sm font-medium mb-1">{statusData.status}</p>
+                <p className="text-2xl font-bold">{statusData.count}</p>
+              </div>
+            );
+          })}
         </div>
       </motion.div>
 
@@ -177,18 +192,27 @@ export default function AdminDashboard() {
       >
         <h3 className="text-lg font-semibold text-[#37353E] mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center justify-center p-4 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors">
+          <a
+            href="/admin/users"
+            className="flex items-center justify-center p-4 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors"
+          >
             <UsersIcon className="h-5 w-5 mr-2" />
             Manage Users
-          </button>
-          <button className="flex items-center justify-center p-4 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors">
+          </a>
+          <a
+            href="/admin/vendors"
+            className="flex items-center justify-center p-4 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors"
+          >
             <BuildingStorefrontIcon className="h-5 w-5 mr-2" />
-            Approve Vendors
-          </button>
-          <button className="flex items-center justify-center p-4 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors">
+            Manage Vendors
+          </a>
+          <a
+            href="/admin/reports"
+            className="flex items-center justify-center p-4 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors"
+          >
             <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
             View Reports
-          </button>
+          </a>
         </div>
       </motion.div>
 

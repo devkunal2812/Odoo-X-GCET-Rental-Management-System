@@ -1,47 +1,69 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   UsersIcon,
   MagnifyingGlassIcon,
-  PlusIcon,
   PencilIcon,
-  TrashIcon,
   EyeIcon,
-  UserPlusIcon,
   ShieldCheckIcon,
   BuildingStorefrontIcon,
-  UserIcon
+  UserIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
-import { mockUsers, User } from '../../../lib/adminData';
+import { api } from '@/app/lib/api-client';
 
-const UserModal = ({ user, isOpen, onClose, onSave }: {
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'ADMIN' | 'VENDOR' | 'CUSTOMER';
+  isActive: boolean;
+  emailVerified: boolean;
+  createdAt: string;
+  vendorProfile?: {
+    companyName: string;
+    gstin?: string;
+  };
+  customerProfile?: {
+    phone?: string;
+  };
+}
+
+const RoleChangeModal = ({ user, isOpen, onClose, onSave }: {
   user: User | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (user: User) => void;
+  onSave: (userId: string, newRole: string) => void;
 }) => {
-  const [formData, setFormData] = useState<Partial<User>>(
-    user || { name: '', email: '', role: 'customer', status: 'active' }
-  );
+  const [selectedRole, setSelectedRole] = useState<string>(user?.role || 'CUSTOMER');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      setSelectedRole(user.role);
+    }
+  }, [user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name && formData.email && formData.role) {
-      onSave({
-        id: user?.id || `user-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role as 'admin' | 'vendor' | 'customer',
-        status: formData.status as 'active' | 'disabled' | 'pending',
-        createdAt: user?.createdAt || new Date().toISOString().split('T')[0]
-      });
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onSave(user.id, selectedRole);
       onClose();
+    } catch (error) {
+      console.error('Failed to update role:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !user) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -52,69 +74,49 @@ const UserModal = ({ user, isOpen, onClose, onSave }: {
         className="bg-white rounded-xl p-6 w-full max-w-md mx-4"
       >
         <h3 className="text-lg font-semibold text-[#37353E] mb-4">
-          {user ? 'Edit User' : 'Create New User'}
+          Change User Role
         </h3>
+        
+        <div className="mb-4 p-4 bg-[#D3DAD9] rounded-lg">
+          <p className="text-sm text-[#715A5A] mb-1">User</p>
+          <p className="font-medium text-[#37353E]">{user.firstName} {user.lastName}</p>
+          <p className="text-sm text-[#715A5A]">{user.email}</p>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[#37353E] mb-1">Name</label>
-            <input
-              type="text"
-              value={formData.name || ''}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-[#44444E] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#37353E] text-[#37353E]"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-[#37353E] mb-1">Email</label>
-            <input
-              type="email"
-              value={formData.email || ''}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-[#44444E] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#37353E] text-[#37353E]"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-[#37353E] mb-1">Role</label>
+            <label className="block text-sm font-medium text-[#37353E] mb-2">New Role</label>
             <select
-              value={formData.role || 'customer'}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
               className="w-full px-3 py-2 border border-[#44444E] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#37353E] text-[#37353E] bg-white"
+              disabled={isSubmitting}
             >
-              <option value="customer">Customer</option>
-              <option value="vendor">Vendor</option>
-              <option value="admin">Admin</option>
+              <option value="CUSTOMER">Customer</option>
+              <option value="VENDOR">Vendor</option>
+              <option value="ADMIN">Admin</option>
             </select>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-[#37353E] mb-1">Status</label>
-            <select
-              value={formData.status || 'active'}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="w-full px-3 py-2 border border-[#44444E] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#37353E] text-[#37353E] bg-white"
-            >
-              <option value="active">Active</option>
-              <option value="disabled">Disabled</option>
-              <option value="pending">Pending</option>
-            </select>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Changing user roles will affect their access permissions and available features.
+            </p>
           </div>
           
           <div className="flex space-x-3 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-[#37353E] text-white py-2 px-4 rounded-lg hover:bg-[#44444E] transition-colors"
+              disabled={isSubmitting || selectedRole === user.role}
+              className="flex-1 bg-[#37353E] text-white py-2 px-4 rounded-lg hover:bg-[#44444E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {user ? 'Update User' : 'Create User'}
+              {isSubmitting ? 'Updating...' : 'Update Role'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-[#D3DAD9] text-[#37353E] py-2 px-4 rounded-lg hover:bg-[#44444E] hover:text-white transition-colors"
+              disabled={isSubmitting}
+              className="flex-1 bg-[#D3DAD9] text-[#37353E] py-2 px-4 rounded-lg hover:bg-[#44444E] hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -126,78 +128,129 @@ const UserModal = ({ user, isOpen, onClose, onSave }: {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-    const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus;
-    
-    return matchesSearch && matchesRole && matchesStatus;
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
   });
 
-  const handleCreateUser = () => {
-    setSelectedUser(null);
-    setIsModalOpen(true);
+  // Fetch users from API
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: pagination.page,
+        limit: pagination.limit
+      };
+      
+      if (selectedRole !== 'all') {
+        params.role = selectedRole.toUpperCase();
+      }
+
+      const response = await api.get<{
+        success: boolean;
+        users: User[];
+        pagination: typeof pagination;
+      }>('/admin/users', params);
+
+      if (response.success) {
+        setUsers(response.users);
+        setPagination(response.pagination);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [pagination.page, selectedRole]);
+
+  const filteredUsers = users.filter(user => {
+    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || 
+                         (selectedStatus === 'active' && user.isActive) ||
+                         (selectedStatus === 'inactive' && !user.isActive) ||
+                         (selectedStatus === 'verified' && user.emailVerified) ||
+                         (selectedStatus === 'unverified' && !user.emailVerified);
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
     setIsModalOpen(true);
   };
 
-  const handleSaveUser = (userData: User) => {
-    if (selectedUser) {
-      setUsers(users.map(u => u.id === userData.id ? userData : u));
-    } else {
-      setUsers([...users, userData]);
-    }
-  };
+  const handleSaveRole = async (userId: string, newRole: string) => {
+    try {
+      const response = await api.put<{
+        success: boolean;
+        message: string;
+      }>('/admin/users', {
+        userId,
+        role: newRole
+      });
 
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== userId));
+      if (response.success) {
+        // Refresh users list
+        await fetchUsers();
+        
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        successMessage.textContent = response.message || 'User role updated successfully!';
+        document.body.appendChild(successMessage);
+        setTimeout(() => document.body.removeChild(successMessage), 3000);
+      }
+    } catch (error: any) {
+      console.error('Failed to update role:', error);
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      errorMessage.textContent = error.message || 'Failed to update user role';
+      document.body.appendChild(errorMessage);
+      setTimeout(() => document.body.removeChild(errorMessage), 3000);
     }
-  };
-
-  const handleToggleStatus = (userId: string) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'active' ? 'disabled' : 'active' }
-        : user
-    ));
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'admin': return ShieldCheckIcon;
-      case 'vendor': return BuildingStorefrontIcon;
+      case 'ADMIN': return ShieldCheckIcon;
+      case 'VENDOR': return BuildingStorefrontIcon;
       default: return UserIcon;
     }
   };
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'vendor': return 'bg-blue-100 text-blue-800';
+      case 'ADMIN': return 'bg-red-100 text-red-800';
+      case 'VENDOR': return 'bg-blue-100 text-blue-800';
       default: return 'bg-green-100 text-green-800';
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'disabled': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#37353E] mb-4"></div>
+        <p className="text-[#715A5A]">Loading users...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -210,13 +263,26 @@ export default function UsersPage() {
             <p className="text-[#715A5A]">Manage all system users and their permissions</p>
           </div>
         </div>
-        <button
-          onClick={handleCreateUser}
-          className="flex items-center space-x-2 bg-[#37353E] text-white px-4 py-2 rounded-lg hover:bg-[#44444E] transition-colors"
-        >
-          <PlusIcon className="h-5 w-5" />
-          <span>Add User</span>
-        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-[#D3DAD9]">
+          <p className="text-sm text-[#715A5A]">Total Users</p>
+          <p className="text-2xl font-bold text-[#37353E]">{pagination.total}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-[#D3DAD9]">
+          <p className="text-sm text-[#715A5A]">Active Users</p>
+          <p className="text-2xl font-bold text-green-600">{users.filter(u => u.isActive).length}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-[#D3DAD9]">
+          <p className="text-sm text-[#715A5A]">Vendors</p>
+          <p className="text-2xl font-bold text-blue-600">{users.filter(u => u.role === 'VENDOR').length}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-[#D3DAD9]">
+          <p className="text-sm text-[#715A5A]">Verified</p>
+          <p className="text-2xl font-bold text-purple-600">{users.filter(u => u.emailVerified).length}</p>
+        </div>
       </div>
 
       {/* Filters */}
@@ -251,8 +317,9 @@ export default function UsersPage() {
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
-            <option value="disabled">Disabled</option>
-            <option value="pending">Pending</option>
+            <option value="inactive">Inactive</option>
+            <option value="verified">Verified</option>
+            <option value="unverified">Unverified</option>
           </select>
           
           <div className="text-sm text-[#715A5A] flex items-center">
@@ -277,10 +344,10 @@ export default function UsersPage() {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#37353E] uppercase tracking-wider">
-                  Created
+                  Email Verified
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[#37353E] uppercase tracking-wider">
-                  Last Login
+                  Created
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-[#37353E] uppercase tracking-wider">
                   Actions
@@ -303,11 +370,18 @@ export default function UsersPage() {
                         <div className="flex items-center">
                           <div className="w-10 h-10 bg-gradient-to-r from-[#37353E] to-[#44444E] rounded-full flex items-center justify-center mr-3">
                             <span className="text-white font-semibold text-sm">
-                              {user.name.charAt(0)}
+                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                             </span>
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-[#37353E]">{user.name}</div>
+                            <div className="text-sm font-medium text-[#37353E]">
+                              {user.firstName} {user.lastName}
+                              {user.vendorProfile && (
+                                <span className="ml-2 text-xs text-[#715A5A]">
+                                  ({user.vendorProfile.companyName})
+                                </span>
+                              )}
+                            </div>
                             <div className="text-sm text-[#715A5A]">{user.email}</div>
                           </div>
                         </div>
@@ -319,39 +393,58 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(user.status)}`}>
-                          {user.status}
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                          user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.isActive ? (
+                            <>
+                              <CheckCircleIcon className="h-3 w-3 mr-1" />
+                              Active
+                            </>
+                          ) : (
+                            <>
+                              <XCircleIcon className="h-3 w-3 mr-1" />
+                              Inactive
+                            </>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                          user.emailVerified ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {user.emailVerified ? (
+                            <>
+                              <CheckCircleIcon className="h-3 w-3 mr-1" />
+                              Verified
+                            </>
+                          ) : (
+                            <>
+                              <XCircleIcon className="h-3 w-3 mr-1" />
+                              Unverified
+                            </>
+                          )}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[#715A5A]">
-                        {user.createdAt}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#715A5A]">
-                        {user.lastLogin || 'Never'}
+                        {new Date(user.createdAt).toLocaleDateString('en-IN')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => handleEditUser(user)}
                             className="text-[#37353E] hover:text-[#44444E] p-1"
-                            title="Edit user"
+                            title="Change role"
                           >
                             <PencilIcon className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => handleToggleStatus(user.id)}
-                            className={`p-1 ${user.status === 'active' ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
-                            title={user.status === 'active' ? 'Disable user' : 'Enable user'}
+                          <a
+                            href={`/admin/users/${user.id}`}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                            title="View details"
                           >
                             <EyeIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="text-red-600 hover:text-red-800 p-1"
-                            title="Delete user"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
+                          </a>
                         </div>
                       </td>
                     </motion.tr>
@@ -361,14 +454,39 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {pagination.pages > 1 && (
+          <div className="bg-[#D3DAD9] px-6 py-4 flex items-center justify-between">
+            <div className="text-sm text-[#715A5A]">
+              Page {pagination.page} of {pagination.pages}
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                disabled={pagination.page === 1}
+                className="px-3 py-1 bg-white text-[#37353E] rounded hover:bg-[#44444E] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                disabled={pagination.page === pagination.pages}
+                className="px-3 py-1 bg-white text-[#37353E] rounded hover:bg-[#44444E] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* User Modal */}
-      <UserModal
+      {/* Role Change Modal */}
+      <RoleChangeModal
         user={selectedUser}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveUser}
+        onSave={handleSaveRole}
       />
     </div>
   );
