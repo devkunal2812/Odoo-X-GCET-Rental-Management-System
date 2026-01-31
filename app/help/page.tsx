@@ -1,348 +1,299 @@
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
-import { 
-  ShoppingCartIcon, 
-  HeartIcon, 
-  UserIcon, 
+import Header from "../../components/Header";
+import {
   MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
-  ChatBubbleLeftRightIcon,
   DocumentTextIcon,
-  CreditCardIcon,
-  TruckIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ChatBubbleLeftRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from "@heroicons/react/24/outline";
 
-export default function HelpPage() {
-  const helpCategories = [
-    {
-      icon: QuestionMarkCircleIcon,
-      title: "Getting Started",
-      description: "Learn the basics of using RentMarket",
-      articles: [
-        "How to create an account",
-        "Finding and renting products",
-        "Understanding rental periods",
-        "Setting up your profile"
-      ]
-    },
-    {
-      icon: CreditCardIcon,
-      title: "Payments & Billing",
-      description: "Payment methods, billing, and refunds",
-      articles: [
-        "Accepted payment methods",
-        "Understanding charges",
-        "Refund policy",
-        "Billing disputes"
-      ]
-    },
-    {
-      icon: TruckIcon,
-      title: "Delivery & Pickup",
-      description: "Delivery options and pickup procedures",
-      articles: [
-        "Delivery areas and fees",
-        "Pickup from vendor locations",
-        "Scheduling deliveries",
-        "Return procedures"
-      ]
-    },
-    {
-      icon: ShieldCheckIcon,
-      title: "Safety & Insurance",
-      description: "Product safety and damage protection",
-      articles: [
-        "Damage protection policy",
-        "Reporting damaged items",
-        "Safety guidelines",
-        "Insurance coverage"
-      ]
-    },
-    {
-      icon: DocumentTextIcon,
-      title: "Orders & Rentals",
-      description: "Managing your orders and rentals",
-      articles: [
-        "Modifying rental periods",
-        "Cancellation policy",
-        "Order status tracking",
-        "Rental extensions"
-      ]
-    },
-    {
-      icon: ChatBubbleLeftRightIcon,
-      title: "Vendor Information",
-      description: "Information for vendors and partners",
-      articles: [
-        "Becoming a vendor",
-        "Vendor requirements",
-        "Commission structure",
-        "Vendor dashboard guide"
-      ]
-    }
-  ];
+const faqData = [
+  {
+    question: "How do I rent a product?",
+    answer: "Browse our products, select your rental period, submit a request, and complete payment once approved by the vendor."
+  },
+  {
+    question: "What payment methods do you accept?",
+    answer: "We accept all major credit cards, PayPal, and bank transfers for rental payments."
+  },
+  {
+    question: "How does delivery work?",
+    answer: "Delivery options vary by vendor. Some offer free delivery within certain areas, while others may charge a fee."
+  },
+  {
+    question: "What if a product is damaged during rental?",
+    answer: "Report any damage immediately. Depending on the vendor's policy, you may be responsible for repair costs."
+  },
+  {
+    question: "Can I cancel my rental?",
+    answer: "Cancellation policies vary by vendor. Check the specific policy on each product listing before booking."
+  },
+  {
+    question: "How do I become a vendor?",
+    answer: "Contact our team through the vendor application form. We'll review your application and guide you through the setup process."
+  }
+];
 
-  const popularArticles = [
-    "How do I rent a product?",
-    "What if a product is damaged during rental?",
-    "How do I cancel or modify my rental?",
-    "What payment methods do you accept?",
-    "How does delivery and pickup work?",
-    "How do I become a vendor?",
-    "What is your refund policy?",
-    "How do I contact customer support?"
-  ];
+const popularArticles = [
+  "Getting Started with RentMarket",
+  "Understanding Rental Policies",
+  "Payment and Billing Guide",
+  "Vendor Guidelines and Best Practices",
+  "Safety and Insurance Information",
+  "Troubleshooting Common Issues"
+];
+
+export default function HelpPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+  const toggleFaq = (index: number) => {
+    setExpandedFaq(expandedFaq === index ? null : index);
+  };
+
+  const filteredFaqs = faqData.filter(
+    faq =>
+      faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--eggshell)" }}>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold" style={{ color: "var(--deep-space-blue)" }}>
-                RentMarket
-              </Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Products
-              </Link>
-              <Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                About Us
-              </Link>
-              <Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Contact Us
-              </Link>
-              <Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Terms & Conditions
-              </Link>
-            </nav>
+    <div className="min-h-screen bg-secondary-50">
+      <Header />
+      
+      <div className="pt-24 pb-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-secondary-900 mb-4">
+              Help Center
+            </h1>
+            <p className="text-lg text-secondary-600 mb-8">
+              Find answers to common questions and get the help you need
+            </p>
 
-            <div className="flex items-center space-x-4">
-              <Link href="/wishlist" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <HeartIcon className="h-6 w-6" />
-              </Link>
-              <Link href="/cart" className="hover:opacity-80 transition-opacity relative" style={{ color: "var(--blue-slate)" }}>
-                <ShoppingCartIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  0
-                </span>
-              </Link>
-              <Link href="/login" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <UserIcon className="h-6 w-6" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="py-20" style={{ backgroundColor: "var(--deep-space-blue)" }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6" style={{ color: "var(--eggshell)" }}>
-            Help Center
-          </h1>
-          <p className="text-xl max-w-3xl mx-auto mb-8" style={{ color: "var(--dusty-denim)" }}>
-            Find answers to your questions and get the help you need.
-          </p>
-          
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <MagnifyingGlassIcon className="h-6 w-6 absolute left-4 top-1/2 transform -translate-y-1/2" 
-                                   style={{ color: "var(--blue-slate)" }} />
-              <input
-                type="text"
-                placeholder="Search for help articles..."
-                className="w-full pl-12 pr-4 py-4 rounded-lg text-lg border-2 focus:outline-none focus:ring-2 transition-colors"
-                style={{ 
-                  borderColor: "var(--dusty-denim)",
-                  color: "var(--ink-black)",
-                  backgroundColor: "var(--eggshell)"
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Help Categories */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-12" style={{ color: "var(--ink-black)" }}>
-            Browse by Category
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {helpCategories.map((category, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4" 
-                       style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                    <category.icon className="w-6 h-6" style={{ color: "var(--eggshell)" }} />
-                  </div>
-                  <h3 className="text-xl font-semibold" style={{ color: "var(--ink-black)" }}>
-                    {category.title}
-                  </h3>
-                </div>
-                <p className="mb-4" style={{ color: "var(--blue-slate)" }}>
-                  {category.description}
-                </p>
-                <ul className="space-y-2">
-                  {category.articles.map((article, articleIndex) => (
-                    <li key={articleIndex}>
-                      <Link 
-                        href={`/help/article/${article.toLowerCase().replace(/\s+/g, '-')}`}
-                        className="text-sm hover:opacity-80 transition-opacity"
-                        style={{ color: "var(--deep-space-blue)" }}
-                      >
-                        → {article}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+            {/* Search Bar */}
+            <div className="max-w-2xl mx-auto relative">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary-400" />
+                <input
+                  type="text"
+                  placeholder="Search for help articles..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 border-2 border-secondary-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-secondary-900 bg-white"
+                />
               </div>
-            ))}
+            </div>
           </div>
-        </section>
 
-        {/* Popular Articles */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-12" style={{ color: "var(--ink-black)" }}>
-            Popular Articles
-          </h2>
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Quick Help Categories */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            <div className="bg-white rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow">
+              <QuestionMarkCircleIcon className="w-12 h-12 mx-auto mb-4 text-primary-600" />
+              <h3 className="text-xl font-semibold mb-2 text-secondary-900">Getting Started</h3>
+              <p className="text-secondary-600 mb-4">
+                New to RentMarket? Learn the basics of renting and listing products.
+              </p>
+              <Link 
+                href="#faq" 
+                className="text-primary-600 font-medium hover:text-primary-700"
+              >
+                View FAQ →
+              </Link>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow">
+              <DocumentTextIcon className="w-12 h-12 mx-auto mb-4 text-primary-600" />
+              <h3 className="text-xl font-semibold mb-2 text-secondary-900">Policies & Terms</h3>
+              <p className="text-secondary-600 mb-4">
+                Understand our rental policies, terms of service, and guidelines.
+              </p>
+              <Link 
+                href="/terms" 
+                className="text-primary-600 font-medium hover:text-primary-700"
+              >
+                Read Terms →
+              </Link>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow">
+              <ChatBubbleLeftRightIcon className="w-12 h-12 mx-auto mb-4 text-primary-600" />
+              <h3 className="text-xl font-semibold mb-2 text-secondary-900">Contact Support</h3>
+              <p className="text-secondary-600 mb-4">
+                Need personal assistance? Our support team is here to help.
+              </p>
+              <Link 
+                href="/contact" 
+                className="text-primary-600 font-medium hover:text-primary-700"
+              >
+                Get Help →
+              </Link>
+            </div>
+          </div>
+
+          {/* FAQ Section */}
+          <section id="faq" className="mb-16">
+            <h2 className="text-3xl font-bold text-center mb-12 text-secondary-900">
+              Frequently Asked Questions
+            </h2>
+            <div className="max-w-4xl mx-auto space-y-4">
+              {filteredFaqs.map((faq, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-sm border border-secondary-200">
+                  <button
+                    onClick={() => toggleFaq(index)}
+                    className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-secondary-50 transition-colors"
+                  >
+                    <span className="font-semibold text-secondary-900">{faq.question}</span>
+                    {expandedFaq === index ? (
+                      <ChevronUpIcon className="w-5 h-5 text-secondary-500" />
+                    ) : (
+                      <ChevronDownIcon className="w-5 h-5 text-secondary-500" />
+                    )}
+                  </button>
+                  {expandedFaq === index && (
+                    <div className="px-6 pb-4">
+                      <p className="text-secondary-700">{faq.answer}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Popular Articles */}
+          <section className="mb-16">
+            <h2 className="text-3xl font-bold text-center mb-12 text-secondary-900">
+              Popular Articles
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
               {popularArticles.map((article, index) => (
                 <Link
                   key={index}
-                  href={`/help/article/${article.toLowerCase().replace(/\s+/g, '-').replace(/\?/g, '')}`}
-                  className="flex items-center p-4 rounded-lg border-2 hover:shadow-sm transition-all"
-                  style={{ 
-                    borderColor: "var(--dusty-denim)",
-                    backgroundColor: "var(--eggshell)"
-                  }}
+                  href="#"
+                  className="flex items-center p-4 rounded-lg border-2 hover:shadow-sm transition-all border-secondary-300 bg-white"
                 >
-                  <QuestionMarkCircleIcon className="w-6 h-6 mr-3 flex-shrink-0" 
-                                          style={{ color: "var(--deep-space-blue)" }} />
-                  <span className="font-medium" style={{ color: "var(--ink-black)" }}>
+                  <QuestionMarkCircleIcon className="w-6 h-6 mr-3 flex-shrink-0 text-primary-600" />
+                  <span className="font-medium text-secondary-900">
                     {article}
                   </span>
                 </Link>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Contact Support */}
-        <section className="text-center py-16 rounded-2xl" style={{ backgroundColor: "var(--dusty-denim)" }}>
-          <h2 className="text-3xl font-bold mb-4" style={{ color: "var(--eggshell)" }}>
-            Still Need Help?
-          </h2>
-          <p className="text-lg mb-8" style={{ color: "var(--blue-slate)" }}>
-            Can't find what you're looking for? Our support team is here to help.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/contact"
-              className="px-8 py-3 rounded-lg font-semibold transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--deep-space-blue)", color: "var(--eggshell)" }}
-            >
-              Contact Support
-            </Link>
-            <Link 
-              href="mailto:support@rentmarket.com"
-              className="px-8 py-3 rounded-lg font-semibold border-2 transition-colors hover:opacity-90"
-              style={{ borderColor: "var(--deep-space-blue)", color: "var(--deep-space-blue)", backgroundColor: "transparent" }}
-            >
-              Email Us
-            </Link>
-          </div>
-          <div className="mt-6 text-sm" style={{ color: "var(--blue-slate)" }}>
-            <p>📞 Phone: +1 (555) 123-4567</p>
-            <p>🕒 Hours: Monday-Friday 9AM-6PM EST</p>
-          </div>
-        </section>
+          {/* Contact Support */}
+          <section className="text-center py-16 rounded-2xl bg-secondary-400">
+            <h2 className="text-3xl font-bold mb-4 text-white">
+              Still Need Help?
+            </h2>
+            <p className="text-lg mb-8 text-secondary-100">
+              Can't find what you're looking for? Our support team is here to help.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/contact"
+                className="px-8 py-3 rounded-lg font-semibold transition-colors hover:opacity-90 bg-primary-700 text-white"
+              >
+                Contact Support
+              </Link>
+              <Link 
+                href="mailto:support@rentmarket.com"
+                className="px-8 py-3 rounded-lg font-semibold border-2 transition-colors hover:opacity-90 border-primary-700 text-primary-700 bg-transparent"
+              >
+                Email Us
+              </Link>
+            </div>
+            <div className="mt-6 text-sm text-secondary-100">
+              <p>📞 Phone: +1 (555) 123-4567</p>
+              <p>🕒 Hours: Monday-Friday 9AM-6PM EST</p>
+            </div>
+          </section>
 
-        {/* Quick Links */}
-        <section className="mt-16">
-          <h2 className="text-2xl font-bold text-center mb-8" style={{ color: "var(--ink-black)" }}>
-            Quick Links
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Link 
-              href="/terms"
-              className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-            >
-              <DocumentTextIcon className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--deep-space-blue)" }} />
-              <h3 className="font-semibold mb-2" style={{ color: "var(--ink-black)" }}>Terms & Conditions</h3>
-              <p className="text-sm" style={{ color: "var(--blue-slate)" }}>Read our terms of service</p>
-            </Link>
-            <Link 
-              href="/privacy"
-              className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-            >
-              <ShieldCheckIcon className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--deep-space-blue)" }} />
-              <h3 className="font-semibold mb-2" style={{ color: "var(--ink-black)" }}>Privacy Policy</h3>
-              <p className="text-sm" style={{ color: "var(--blue-slate)" }}>How we protect your data</p>
-            </Link>
-            <Link 
-              href="/contact"
-              className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-            >
-              <ChatBubbleLeftRightIcon className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--deep-space-blue)" }} />
-              <h3 className="font-semibold mb-2" style={{ color: "var(--ink-black)" }}>Contact Us</h3>
-              <p className="text-sm" style={{ color: "var(--blue-slate)" }}>Get in touch with our team</p>
-            </Link>
-            <Link 
-              href="/about"
-              className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-            >
-              <QuestionMarkCircleIcon className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--deep-space-blue)" }} />
-              <h3 className="font-semibold mb-2" style={{ color: "var(--ink-black)" }}>About RentMarket</h3>
-              <p className="text-sm" style={{ color: "var(--blue-slate)" }}>Learn more about us</p>
-            </Link>
-          </div>
-        </section>
+          {/* Quick Links */}
+          <section className="mt-16">
+            <h2 className="text-2xl font-bold text-center mb-8 text-secondary-900">
+              Quick Links
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Link 
+                href="/terms"
+                className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <DocumentTextIcon className="w-8 h-8 mx-auto mb-3 text-primary-600" />
+                <h3 className="font-semibold mb-2 text-secondary-900">Terms & Conditions</h3>
+                <p className="text-sm text-secondary-600">Read our terms of service</p>
+              </Link>
+              <Link 
+                href="/privacy"
+                className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <ShieldCheckIcon className="w-8 h-8 mx-auto mb-3 text-primary-600" />
+                <h3 className="font-semibold mb-2 text-secondary-900">Privacy Policy</h3>
+                <p className="text-sm text-secondary-600">How we protect your data</p>
+              </Link>
+              <Link 
+                href="/contact"
+                className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <ChatBubbleLeftRightIcon className="w-8 h-8 mx-auto mb-3 text-primary-600" />
+                <h3 className="font-semibold mb-2 text-secondary-900">Contact Us</h3>
+                <p className="text-sm text-secondary-600">Get in touch with our team</p>
+              </Link>
+              <Link 
+                href="/about"
+                className="text-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <QuestionMarkCircleIcon className="w-8 h-8 mx-auto mb-3 text-primary-600" />
+                <h3 className="font-semibold mb-2 text-secondary-900">About RentMarket</h3>
+                <p className="text-sm text-secondary-600">Learn more about us</p>
+              </Link>
+            </div>
+          </section>
+        </div>
       </div>
 
       {/* Footer */}
-      <footer className="text-white py-12" style={{ backgroundColor: "var(--ink-black)" }}>
+      <footer className="text-white py-12 bg-secondary-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4" style={{ color: "var(--eggshell)" }}>RentMarket</h3>
-              <p style={{ color: "var(--dusty-denim)" }}>
+              <h3 className="text-xl font-bold mb-4 text-white">RentMarket</h3>
+              <p className="text-secondary-300">
                 Your trusted marketplace for renting everything you need.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Products</Link></li>
-                <li><Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>About Us</Link></li>
-                <li><Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Contact</Link></li>
+                <li><Link href="/products" className="hover:opacity-80 transition-opacity text-secondary-300">Products</Link></li>
+                <li><Link href="/about" className="hover:opacity-80 transition-opacity text-secondary-300">About Us</Link></li>
+                <li><Link href="/contact" className="hover:opacity-80 transition-opacity text-secondary-300">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Support</h4>
+              <h4 className="font-semibold mb-4 text-white">Support</h4>
               <ul className="space-y-2">
-                <li><Link href="/help" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Help Center</Link></li>
-                <li><Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Terms & Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Privacy Policy</Link></li>
+                <li><Link href="/help" className="hover:opacity-80 transition-opacity text-secondary-300">Help Center</Link></li>
+                <li><Link href="/terms" className="hover:opacity-80 transition-opacity text-secondary-300">Terms & Conditions</Link></li>
+                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity text-secondary-300">Privacy Policy</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Contact Info</h4>
-              <div className="space-y-2" style={{ color: "var(--dusty-denim)" }}>
+              <h4 className="font-semibold mb-4 text-white">Contact Info</h4>
+              <div className="space-y-2 text-secondary-300">
                 <p>Email: support@rentmarket.com</p>
                 <p>Phone: (555) 123-4567</p>
               </div>
             </div>
           </div>
-          <div className="border-t mt-8 pt-8 text-center" style={{ borderColor: "var(--blue-slate)", color: "var(--dusty-denim)" }}>
+          <div className="border-t mt-8 pt-8 text-center border-secondary-700 text-secondary-300">
             <p>&copy; 2024 RentMarket. All rights reserved.</p>
           </div>
         </div>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import type { FormEvent, ChangeEvent } from "react";
+import React, { useState } from "react";
+import type { ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { UserIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<"customer" | "vendor" | "admin">("customer");
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("Login attempt:", { role: selectedRole, ...formData });
     
@@ -36,20 +36,20 @@ export default function LoginPage() {
     customer: {
       title: "Customer Login",
       subtitle: "Access your rental account",
-      bgColor: "from-blue-slate to-dusty-denim",
-      buttonColor: "bg-blue-slate hover:bg-deep-space-blue"
+      bgColor: "from-primary-600 to-primary-700",
+      buttonColor: "bg-primary-600 hover:bg-primary-700"
     },
     vendor: {
       title: "Vendor Login", 
       subtitle: "Manage your rental business",
-      bgColor: "from-deep-space-blue to-blue-slate",
-      buttonColor: "bg-deep-space-blue hover:bg-blue-slate"
+      bgColor: "from-secondary-700 to-secondary-800",
+      buttonColor: "bg-secondary-700 hover:bg-secondary-800"
     },
     admin: {
       title: "Admin Login",
       subtitle: "System administration panel",
-      bgColor: "from-ink-black to-deep-space-blue", 
-      buttonColor: "bg-ink-black hover:bg-deep-space-blue"
+      bgColor: "from-secondary-800 to-secondary-900", 
+      buttonColor: "bg-secondary-800 hover:bg-secondary-900"
     }
   };
 
@@ -57,29 +57,29 @@ export default function LoginPage() {
 
   return (
    <>
-    <div className="min-h-screen flex" style={{ backgroundColor: "var(--eggshell)" }}>
+    <div className="min-h-screen flex bg-secondary-50">
       {/* Left Side - Role Selection & Branding */}
       <div className={`hidden lg:flex lg:w-1/2 bg-gradient-to-br ${currentConfig.bgColor} p-12 flex-col justify-between`}>
         <div>
-          <Link href="/" className="text-3xl font-bold" style={{ color: "var(--eggshell)" }}>
+          <Link href="/" className="text-3xl font-bold text-white">
             RentMarket
           </Link>
-          <p className="mt-4 text-lg opacity-90" style={{ color: "var(--eggshell)" }}>
+          <p className="mt-4 text-lg opacity-90 text-white">
             Multi-vendor rental marketplace platform
           </p>
         </div>
 
         <div className="space-y-6">
-          <h2 className="text-4xl font-bold" style={{ color: "var(--eggshell)" }}>
+          <h2 className="text-4xl font-bold text-white">
             {currentConfig.title}
           </h2>
-          <p className="text-xl opacity-90" style={{ color: "var(--eggshell)" }}>
+          <p className="text-xl opacity-90 text-white">
             {currentConfig.subtitle}
           </p>
 
           {/* Role Selection */}
           <div className="space-y-3">
-            <p className="text-sm font-medium opacity-75" style={{ color: "var(--eggshell)" }}>
+            <p className="text-sm font-medium opacity-75 text-white">
               Select your role:
             </p>
             <div className="flex flex-col space-y-2">
@@ -87,12 +87,11 @@ export default function LoginPage() {
                 <button
                   key={role}
                   onClick={() => setSelectedRole(role)}
-                  className={`text-left px-4 py-2 rounded-lg transition-all ${
+                  className={`text-left px-4 py-2 rounded-lg transition-all text-black ${
                     selectedRole === role
                       ? "bg-white bg-opacity-20 border-2 border-white border-opacity-50"
                       : "bg-white bg-opacity-10 border-2 border-transparent hover:bg-opacity-15"
                   }`}
-                  style={{ color: "var(--eggshell)" }}
                 >
                   <span className="font-medium capitalize">{role}</span>
                   <span className="block text-sm opacity-75">
@@ -106,7 +105,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="text-sm opacity-75" style={{ color: "var(--eggshell)" }}>
+        <div className="text-sm opacity-75 text-white">
           © 2024 RentMarket. All rights reserved.
         </div>
       </div>
@@ -116,7 +115,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile Role Selection */}
           <div className="lg:hidden mb-8">
-            <Link href="/" className="text-2xl font-bold block text-center mb-4" style={{ color: "var(--ink-black)" }}>
+            <Link href="/" className="text-2xl font-bold block text-center mb-4 text-secondary-900">
               RentMarket
             </Link>
             <div className="flex space-x-2 mb-6">
@@ -126,14 +125,9 @@ export default function LoginPage() {
                   onClick={() => setSelectedRole(role)}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                     selectedRole === role
-                      ? "text-white"
-                      : "border-2 hover:bg-opacity-10"
+                      ? "text-white bg-primary-600"
+                      : "border-2 border-primary-600 text-primary-600 hover:bg-primary-50"
                   }`}
-                  style={{
-                    backgroundColor: selectedRole === role ? "var(--blue-slate)" : "transparent",
-                    borderColor: "var(--blue-slate)",
-                    color: selectedRole === role ? "var(--eggshell)" : "var(--blue-slate)"
-                  }}
                 >
                   {role}
                 </button>
@@ -141,23 +135,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-8" style={{ backgroundColor: "white" }}>
+          <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
-              <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" 
-                   style={{ backgroundColor: "var(--dusty-denim)" }}>
-                <UserIcon className="w-8 h-8" style={{ color: "var(--eggshell)" }} />
+              <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-secondary-600">
+                <UserIcon className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-2xl font-bold" style={{ color: "var(--ink-black)" }}>
+              <h1 className="text-2xl font-bold text-secondary-900">
                 {currentConfig.title}
               </h1>
-              <p className="mt-2" style={{ color: "var(--blue-slate)" }}>
+              <p className="mt-2 text-secondary-600">
                 {currentConfig.subtitle}
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                <label className="block text-sm font-medium mb-2 text-secondary-900">
                   Email Address
                 </label>
                 <div className="relative">
@@ -165,20 +158,15 @@ export default function LoginPage() {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange("email", e.target.value)}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("email", e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white"
                     placeholder="Enter your email"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                <label className="block text-sm font-medium mb-2 text-secondary-900">
                   Password
                 </label>
                 <div className="relative">
@@ -186,20 +174,14 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     required
                     value={formData.password}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange("password", e.target.value)}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors pr-12"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("password", e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors pr-12 text-secondary-900 bg-white"
                     placeholder="Enter your password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                    style={{ color: "var(--dusty-denim)" }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary-500"
                   >
                     {showPassword ? (
                       <EyeSlashIcon className="w-5 h-5" />
@@ -215,18 +197,16 @@ export default function LoginPage() {
                   <input
                     type="checkbox"
                     checked={formData.rememberMe}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange("rememberMe", e.target.checked)}
-                    className="mr-2 rounded"
-                    style={{ accentColor: "var(--blue-slate)" }}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("rememberMe", e.target.checked)}
+                    className="mr-2 rounded accent-primary-600"
                   />
-                  <span className="text-sm" style={{ color: "var(--blue-slate)" }}>
+                  <span className="text-sm text-secondary-600">
                     Remember me
                   </span>
                 </label>
                 <Link 
                   href="/forgot-password" 
-                  className="text-sm hover:underline"
-                  style={{ color: "var(--blue-slate)" }}
+                  className="text-sm hover:underline text-primary-600"
                 >
                   Forgot password?
                 </Link>
@@ -242,12 +222,11 @@ export default function LoginPage() {
 
             {selectedRole === "customer" && (
               <div className="mt-6 text-center">
-                <p className="text-sm" style={{ color: "var(--blue-slate)" }}>
+                <p className="text-sm text-secondary-600">
                   Don't have an account?{" "}
                   <Link 
-                    href="/register" 
-                    className="font-medium hover:underline"
-                    style={{ color: "var(--deep-space-blue)" }}
+                    href="/signup" 
+                    className="font-medium hover:underline text-primary-600"
                   >
                     Sign up
                   </Link>
@@ -257,14 +236,13 @@ export default function LoginPage() {
 
             {(selectedRole === "vendor" || selectedRole === "admin") && (
               <div className="mt-6 text-center">
-                <p className="text-sm" style={{ color: "var(--blue-slate)" }}>
-                  Need access?{" "}
+                <p className="text-sm text-secondary-600">
+                  {selectedRole === "vendor" ? "Want to become a vendor?" : "Need admin access?"}{" "}
                   <Link 
-                    href="/contact" 
-                    className="font-medium hover:underline"
-                    style={{ color: "var(--deep-space-blue)" }}
+                    href={selectedRole === "vendor" ? "/signup" : "/contact"} 
+                    className="font-medium hover:underline text-primary-600"
                   >
-                    Contact administrator
+                    {selectedRole === "vendor" ? "Sign up" : "Contact administrator"}
                   </Link>
                 </p>
               </div>

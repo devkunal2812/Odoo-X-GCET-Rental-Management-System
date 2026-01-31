@@ -1,13 +1,14 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import Link from "next/link";
+import Header from "../../components/Header";
 import { 
-  ShoppingCartIcon, 
-  HeartIcon, 
-  UserIcon, 
   TrashIcon,
-  StarIcon
+  StarIcon,
+  HeartIcon,
+  ShoppingCartIcon
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 
@@ -67,75 +68,28 @@ export default function WishlistPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--eggshell)" }}>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold" style={{ color: "var(--deep-space-blue)" }}>
-                RentMarket
-              </Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Products
-              </Link>
-              <Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                About Us
-              </Link>
-              <Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Contact Us
-              </Link>
-              <Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Terms & Conditions
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-4">
-              <Link href="/wishlist" className="relative" style={{ color: "var(--deep-space-blue)" }}>
-                <HeartSolidIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  {wishlistItems.length}
-                </span>
-              </Link>
-              <Link href="/cart" className="hover:opacity-80 transition-opacity relative" style={{ color: "var(--blue-slate)" }}>
-                <ShoppingCartIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  0
-                </span>
-              </Link>
-              <Link href="/login" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <UserIcon className="h-6 w-6" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-secondary-50">
+      <Header currentPage="wishlist" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--ink-black)" }}>My Wishlist</h1>
-          <p style={{ color: "var(--blue-slate)" }}>
+          <h1 className="text-3xl font-bold mb-2 text-secondary-900">My Wishlist</h1>
+          <p className="text-secondary-600">
             {wishlistItems.length} {wishlistItems.length === 1 ? 'item' : 'items'} saved for later
           </p>
         </div>
 
         {wishlistItems.length === 0 ? (
           <div className="text-center py-16">
-            <HeartIcon className="h-24 w-24 mx-auto mb-6" style={{ color: "var(--dusty-denim)" }} />
-            <h2 className="text-2xl font-semibold mb-4" style={{ color: "var(--ink-black)" }}>Your wishlist is empty</h2>
-            <p className="mb-8" style={{ color: "var(--blue-slate)" }}>
+            <HeartIcon className="h-24 w-24 mx-auto mb-6 text-secondary-400" />
+            <h2 className="text-2xl font-semibold mb-4 text-secondary-900">Your wishlist is empty</h2>
+            <p className="mb-8 text-secondary-600">
               Start browsing and save your favorite products for later!
             </p>
             <Link
               href="/products"
-              className="px-8 py-3 rounded-lg font-semibold text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--deep-space-blue)" }}
+              className="px-8 py-3 rounded-lg font-semibold text-white transition-colors hover:opacity-90 bg-primary-600"
             >
               Browse Products
             </Link>
@@ -147,13 +101,12 @@ export default function WishlistPage() {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => setWishlistItems([])}
-                  className="text-sm hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--blue-slate)" }}
+                  className="text-sm hover:opacity-80 transition-opacity text-secondary-600"
                 >
                   Clear All
                 </button>
               </div>
-              <div className="text-sm" style={{ color: "var(--blue-slate)" }}>
+              <div className="text-sm text-secondary-600">
                 Share your wishlist with friends
               </div>
             </div>
@@ -163,16 +116,15 @@ export default function WishlistPage() {
               {wishlistItems.map(item => (
                 <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   <div className="relative">
-                    <div className="h-48" style={{ backgroundColor: "var(--dusty-denim)" }}></div>
+                    <div className="h-48 bg-secondary-300"></div>
                     <button
                       onClick={() => removeFromWishlist(item.id)}
                       className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-sm hover:shadow-md transition-shadow"
                     >
-                      <HeartSolidIcon className="h-5 w-5" style={{ color: "var(--deep-space-blue)" }} />
+                      <HeartSolidIcon className="h-5 w-5 text-primary-600" />
                     </button>
                     {!item.available && (
-                      <div className="absolute top-3 left-3 px-2 py-1 text-xs font-medium rounded-full text-white"
-                           style={{ backgroundColor: "var(--blue-slate)" }}>
+                      <div className="absolute top-3 left-3 px-2 py-1 text-xs font-medium rounded-full text-white bg-secondary-500">
                         Unavailable
                       </div>
                     )}
@@ -180,18 +132,18 @@ export default function WishlistPage() {
                   
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-lg" style={{ color: "var(--ink-black)" }}>{item.name}</h3>
+                      <h3 className="font-semibold text-lg text-secondary-900">{item.name}</h3>
                       <div className="text-right">
-                        <div className="text-xl font-bold" style={{ color: "var(--deep-space-blue)" }}>
+                        <div className="text-xl font-bold text-primary-600">
                           ${item.price}
                         </div>
-                        <div className="text-sm" style={{ color: "var(--blue-slate)" }}>
+                        <div className="text-sm text-secondary-600">
                           per {item.priceUnit}
                         </div>
                       </div>
                     </div>
                     
-                    <p className="text-sm mb-2" style={{ color: "var(--blue-slate)" }}>by {item.vendor}</p>
+                    <p className="text-sm mb-2 text-secondary-600">by {item.vendor}</p>
                     
                     <div className="flex items-center mb-3">
                       <div className="flex mr-2">
@@ -202,7 +154,7 @@ export default function WishlistPage() {
                           />
                         ))}
                       </div>
-                      <span className="text-sm" style={{ color: "var(--blue-slate)" }}>
+                      <span className="text-sm text-secondary-600">
                         {item.rating} ({item.reviews} reviews)
                       </span>
                     </div>
@@ -210,28 +162,21 @@ export default function WishlistPage() {
                     <div className="flex space-x-2">
                       <Link
                         href={`/products/${item.productId}`}
-                        className="flex-1 text-center py-2 px-4 rounded-lg border-2 transition-colors hover:opacity-80"
-                        style={{ 
-                          borderColor: "var(--deep-space-blue)", 
-                          color: "var(--deep-space-blue)",
-                          backgroundColor: "transparent"
-                        }}
+                        className="flex-1 text-center py-2 px-4 rounded-lg border-2 border-primary-600 text-primary-600 transition-colors hover:opacity-80 bg-transparent"
                       >
                         View Details
                       </Link>
                       {item.available ? (
                         <button 
                           onClick={() => addToCart(item.productId)}
-                          className="py-2 px-4 rounded-lg text-white transition-colors hover:opacity-90"
-                          style={{ backgroundColor: "var(--deep-space-blue)" }}
+                          className="py-2 px-4 rounded-lg text-white transition-colors hover:opacity-90 bg-primary-600"
                         >
                           <ShoppingCartIcon className="h-5 w-5" />
                         </button>
                       ) : (
                         <button 
                           disabled
-                          className="py-2 px-4 rounded-lg text-white opacity-50 cursor-not-allowed"
-                          style={{ backgroundColor: "var(--blue-slate)" }}
+                          className="py-2 px-4 rounded-lg text-white opacity-50 cursor-not-allowed bg-secondary-500"
                         >
                           <ShoppingCartIcon className="h-5 w-5" />
                         </button>
@@ -246,12 +191,7 @@ export default function WishlistPage() {
             <div className="mt-12 text-center">
               <Link
                 href="/products"
-                className="px-8 py-3 rounded-lg font-semibold border-2 transition-colors hover:opacity-80"
-                style={{ 
-                  borderColor: "var(--deep-space-blue)", 
-                  color: "var(--deep-space-blue)",
-                  backgroundColor: "transparent"
-                }}
+                className="px-8 py-3 rounded-lg font-semibold border-2 border-primary-600 text-primary-600 transition-colors hover:opacity-80 bg-transparent"
               >
                 Continue Shopping
               </Link>
@@ -259,7 +199,7 @@ export default function WishlistPage() {
 
             {/* Recommendations */}
             <section className="mt-16">
-              <h2 className="text-2xl font-bold mb-8" style={{ color: "var(--ink-black)" }}>You Might Also Like</h2>
+              <h2 className="text-2xl font-bold mb-8 text-secondary-900">You Might Also Like</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                   { name: "Power Drill Set", price: 15, vendor: "ToolMaster", rating: 4.6 },
@@ -268,17 +208,17 @@ export default function WishlistPage() {
                   { name: "Gaming Console", price: 35, vendor: "GameRent", rating: 4.8 }
                 ].map((product, index) => (
                   <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="h-40" style={{ backgroundColor: "var(--dusty-denim)" }}></div>
+                    <div className="h-40 bg-secondary-400"></div>
                     <div className="p-4">
-                      <h3 className="font-semibold mb-1" style={{ color: "var(--ink-black)" }}>{product.name}</h3>
-                      <p className="text-sm mb-2" style={{ color: "var(--blue-slate)" }}>by {product.vendor}</p>
+                      <h3 className="font-semibold mb-1 text-secondary-900">{product.name}</h3>
+                      <p className="text-sm mb-2 text-secondary-600">by {product.vendor}</p>
                       <div className="flex justify-between items-center">
-                        <div className="font-bold" style={{ color: "var(--deep-space-blue)" }}>
+                        <div className="font-bold text-primary-600">
                           ${product.price}/day
                         </div>
                         <div className="flex items-center">
                           <StarSolidIcon className="h-4 w-4 text-yellow-400 mr-1" />
-                          <span className="text-sm" style={{ color: "var(--blue-slate)" }}>{product.rating}</span>
+                          <span className="text-sm text-secondary-600">{product.rating}</span>
                         </div>
                       </div>
                     </div>
@@ -291,40 +231,40 @@ export default function WishlistPage() {
       </div>
 
       {/* Footer */}
-      <footer className="text-white py-12 mt-16" style={{ backgroundColor: "var(--ink-black)" }}>
+      <footer className="bg-secondary-900 text-white py-12 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4" style={{ color: "var(--eggshell)" }}>RentMarket</h3>
-              <p style={{ color: "var(--dusty-denim)" }}>
+              <h3 className="text-xl font-bold mb-4 text-white">RentMarket</h3>
+              <p className="text-secondary-400">
                 Your trusted marketplace for renting everything you need.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Products</Link></li>
-                <li><Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>About Us</Link></li>
-                <li><Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Contact</Link></li>
+                <li><Link href="/products" className="hover:opacity-80 transition-opacity text-secondary-400">Products</Link></li>
+                <li><Link href="/about" className="hover:opacity-80 transition-opacity text-secondary-400">About Us</Link></li>
+                <li><Link href="/contact" className="hover:opacity-80 transition-opacity text-secondary-400">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Support</h4>
+              <h4 className="font-semibold mb-4 text-white">Support</h4>
               <ul className="space-y-2">
-                <li><Link href="/help" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Help Center</Link></li>
-                <li><Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Terms & Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Privacy Policy</Link></li>
+                <li><Link href="/help" className="hover:opacity-80 transition-opacity text-secondary-400">Help Center</Link></li>
+                <li><Link href="/terms" className="hover:opacity-80 transition-opacity text-secondary-400">Terms & Conditions</Link></li>
+                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity text-secondary-400">Privacy Policy</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Contact Info</h4>
-              <div className="space-y-2" style={{ color: "var(--dusty-denim)" }}>
+              <h4 className="font-semibold mb-4 text-white">Contact Info</h4>
+              <div className="space-y-2 text-secondary-400">
                 <p>Email: support@rentmarket.com</p>
                 <p>Phone: (555) 123-4567</p>
               </div>
             </div>
           </div>
-          <div className="border-t mt-8 pt-8 text-center" style={{ borderColor: "var(--blue-slate)", color: "var(--dusty-denim)" }}>
+          <div className="border-t border-secondary-700 mt-8 pt-8 text-center text-secondary-400">
             <p>&copy; 2024 RentMarket. All rights reserved.</p>
           </div>
         </div>

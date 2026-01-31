@@ -1,11 +1,10 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import Link from "next/link";
+import Header from "../../components/Header";
 import { 
-  ShoppingCartIcon, 
-  HeartIcon, 
-  UserIcon, 
   PhoneIcon, 
   EnvelopeIcon, 
   MapPinIcon,
@@ -39,58 +38,16 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--eggshell)" }}>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold" style={{ color: "var(--deep-space-blue)" }}>
-                RentMarket
-              </Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Products
-              </Link>
-              <Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                About Us
-              </Link>
-              <Link href="/contact" className="font-medium" style={{ color: "var(--deep-space-blue)" }}>
-                Contact Us
-              </Link>
-              <Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Terms & Conditions
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-4">
-              <Link href="/wishlist" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <HeartIcon className="h-6 w-6" />
-              </Link>
-              <Link href="/cart" className="hover:opacity-80 transition-opacity relative" style={{ color: "var(--blue-slate)" }}>
-                <ShoppingCartIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  0
-                </span>
-              </Link>
-              <Link href="/login" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <UserIcon className="h-6 w-6" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-secondary-50">
+      <Header currentPage="contact" />
 
       {/* Hero Section */}
-      <section className="py-20" style={{ backgroundColor: "var(--deep-space-blue)" }}>
+      <section className="py-20 bg-secondary-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6" style={{ color: "var(--eggshell)" }}>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
             Contact Us
           </h1>
-          <p className="text-xl max-w-3xl mx-auto" style={{ color: "var(--dusty-denim)" }}>
+          <p className="text-xl max-w-3xl mx-auto text-secondary-200">
             We're here to help! Get in touch with our team for support, partnerships, or any questions about RentMarket.
           </p>
         </div>
@@ -100,41 +57,38 @@ export default function ContactPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Contact Information */}
           <div className="lg:col-span-1">
-            <h2 className="text-2xl font-bold mb-8" style={{ color: "var(--ink-black)" }}>Get in Touch</h2>
+            <h2 className="text-2xl font-bold mb-8 text-secondary-900">Get in Touch</h2>
             
             <div className="space-y-6">
               <div className="flex items-start">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4" 
-                     style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  <PhoneIcon className="w-6 h-6" style={{ color: "var(--eggshell)" }} />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4 bg-primary-600">
+                  <PhoneIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1" style={{ color: "var(--ink-black)" }}>Phone</h3>
-                  <p style={{ color: "var(--blue-slate)" }}>+1 (555) 123-4567</p>
-                  <p className="text-sm" style={{ color: "var(--blue-slate)" }}>Mon-Fri 9AM-6PM EST</p>
+                  <h3 className="font-semibold mb-1 text-secondary-900">Phone</h3>
+                  <p className="text-secondary-600">+1 (555) 123-4567</p>
+                  <p className="text-sm text-secondary-600">Mon-Fri 9AM-6PM EST</p>
                 </div>
               </div>
 
               <div className="flex items-start">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4" 
-                     style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  <EnvelopeIcon className="w-6 h-6" style={{ color: "var(--eggshell)" }} />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4 bg-primary-600">
+                  <EnvelopeIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1" style={{ color: "var(--ink-black)" }}>Email</h3>
-                  <p style={{ color: "var(--blue-slate)" }}>support@rentmarket.com</p>
-                  <p className="text-sm" style={{ color: "var(--blue-slate)" }}>We'll respond within 24 hours</p>
+                  <h3 className="font-semibold mb-1 text-secondary-900">Email</h3>
+                  <p className="text-secondary-600">support@rentmarket.com</p>
+                  <p className="text-sm text-secondary-600">We'll respond within 24 hours</p>
                 </div>
               </div>
 
               <div className="flex items-start">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4" 
-                     style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  <MapPinIcon className="w-6 h-6" style={{ color: "var(--eggshell)" }} />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4 bg-primary-600">
+                  <MapPinIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1" style={{ color: "var(--ink-black)" }}>Address</h3>
-                  <p style={{ color: "var(--blue-slate)" }}>
+                  <h3 className="font-semibold mb-1 text-secondary-900">Address</h3>
+                  <p className="text-secondary-600">
                     123 Innovation Drive<br />
                     Tech City, TC 12345<br />
                     United States
@@ -143,13 +97,12 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4" 
-                     style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  <ClockIcon className="w-6 h-6" style={{ color: "var(--eggshell)" }} />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center mr-4 bg-primary-600">
+                  <ClockIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1" style={{ color: "var(--ink-black)" }}>Business Hours</h3>
-                  <p style={{ color: "var(--blue-slate)" }}>
+                  <h3 className="font-semibold mb-1 text-secondary-900">Business Hours</h3>
+                  <p className="text-secondary-600">
                     Monday - Friday: 9:00 AM - 6:00 PM<br />
                     Saturday: 10:00 AM - 4:00 PM<br />
                     Sunday: Closed
@@ -159,27 +112,24 @@ export default function ContactPage() {
             </div>
 
             {/* Quick Contact Options */}
-            <div className="mt-8 p-6 rounded-lg" style={{ backgroundColor: "var(--dusty-denim)" }}>
-              <h3 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Quick Help</h3>
+            <div className="mt-8 p-6 rounded-lg bg-secondary-700">
+              <h3 className="font-semibold mb-4 text-white">Quick Help</h3>
               <div className="space-y-3">
                 <Link 
                   href="/help" 
-                  className="block text-sm hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--blue-slate)" }}
+                  className="block text-sm hover:opacity-80 transition-opacity text-secondary-200"
                 >
                   → Visit our Help Center
                 </Link>
                 <Link 
                   href="/login" 
-                  className="block text-sm hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--blue-slate)" }}
+                  className="block text-sm hover:opacity-80 transition-opacity text-secondary-200"
                 >
                   → Vendor Partnership Inquiry
                 </Link>
                 <Link 
                   href="/terms" 
-                  className="block text-sm hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--blue-slate)" }}
+                  className="block text-sm hover:opacity-80 transition-opacity text-secondary-200"
                 >
                   → Terms & Conditions
                 </Link>
@@ -190,12 +140,12 @@ export default function ContactPage() {
           {/* Contact Form */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--ink-black)" }}>Send us a Message</h2>
+              <h2 className="text-2xl font-bold mb-6 text-secondary-900">Send us a Message</h2>
               
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                    <label className="block text-sm font-medium mb-2 text-secondary-900">
                       Full Name *
                     </label>
                     <input
@@ -203,17 +153,12 @@ export default function ContactPage() {
                       required
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
+                      className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white"
                       placeholder="Enter your full name"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                    <label className="block text-sm font-medium mb-2 text-secondary-900">
                       Email Address *
                     </label>
                     <input
@@ -221,42 +166,32 @@ export default function ContactPage() {
                       required
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors"
-                      style={{ 
-                        borderColor: "var(--dusty-denim)",
-                        color: "var(--ink-black)",
-                        backgroundColor: "var(--eggshell)"
-                      }}
+                      className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white"
                       placeholder="Enter your email"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                  <label className="block text-sm font-medium mb-2 text-secondary-900">
                     Inquiry Type
                   </label>
                   <select
                     value={formData.inquiryType}
                     onChange={(e) => handleInputChange("inquiryType", e.target.value)}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
+                    className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white"
                   >
-                    <option value="general">General Inquiry</option>
-                    <option value="customer-support">Customer Support</option>
-                    <option value="vendor-partnership">Vendor Partnership</option>
-                    <option value="technical-issue">Technical Issue</option>
-                    <option value="billing">Billing Question</option>
-                    <option value="feedback">Feedback</option>
+                    <option value="general" className="text-secondary-900 bg-white">General Inquiry</option>
+                    <option value="customer-support" className="text-secondary-900 bg-white">Customer Support</option>
+                    <option value="vendor-partnership" className="text-secondary-900 bg-white">Vendor Partnership</option>
+                    <option value="technical-issue" className="text-secondary-900 bg-white">Technical Issue</option>
+                    <option value="billing" className="text-secondary-900 bg-white">Billing Question</option>
+                    <option value="feedback" className="text-secondary-900 bg-white">Feedback</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                  <label className="block text-sm font-medium mb-2 text-secondary-900">
                     Subject *
                   </label>
                   <input
@@ -264,18 +199,13 @@ export default function ContactPage() {
                     required
                     value={formData.subject}
                     onChange={(e) => handleInputChange("subject", e.target.value)}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
+                    className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-secondary-900 bg-white"
                     placeholder="Brief description of your inquiry"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
+                  <label className="block text-sm font-medium mb-2 text-secondary-900">
                     Message *
                   </label>
                   <textarea
@@ -283,20 +213,14 @@ export default function ContactPage() {
                     rows={6}
                     value={formData.message}
                     onChange={(e) => handleInputChange("message", e.target.value)}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-colors resize-vertical"
-                    style={{ 
-                      borderColor: "var(--dusty-denim)",
-                      color: "var(--ink-black)",
-                      backgroundColor: "var(--eggshell)"
-                    }}
+                    className="w-full px-4 py-3 border-2 border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-vertical text-secondary-900 bg-white"
                     placeholder="Please provide details about your inquiry..."
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors hover:opacity-90"
-                  style={{ backgroundColor: "var(--deep-space-blue)" }}
+                  className="w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors hover:opacity-90 bg-primary-600"
                 >
                   Send Message
                 </button>
@@ -307,7 +231,7 @@ export default function ContactPage() {
 
         {/* FAQ Section */}
         <section className="mt-16">
-          <h2 className="text-3xl font-bold text-center mb-12" style={{ color: "var(--ink-black)" }}>
+          <h2 className="text-3xl font-bold text-center mb-12 text-secondary-900">
             Frequently Asked Questions
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -338,10 +262,10 @@ export default function ContactPage() {
               }
             ].map((faq, index) => (
               <div key={index} className="bg-white rounded-lg p-6 shadow-sm">
-                <h3 className="font-semibold mb-3" style={{ color: "var(--deep-space-blue)" }}>
+                <h3 className="font-semibold mb-3 text-primary-600">
                   {faq.question}
                 </h3>
-                <p style={{ color: "var(--blue-slate)" }}>{faq.answer}</p>
+                <p className="text-secondary-600">{faq.answer}</p>
               </div>
             ))}
           </div>
@@ -349,40 +273,40 @@ export default function ContactPage() {
       </div>
 
       {/* Footer */}
-      <footer className="text-white py-12" style={{ backgroundColor: "var(--ink-black)" }}>
+      <footer className="bg-secondary-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4" style={{ color: "var(--eggshell)" }}>RentMarket</h3>
-              <p style={{ color: "var(--dusty-denim)" }}>
+              <h3 className="text-xl font-bold mb-4 text-white">RentMarket</h3>
+              <p className="text-secondary-400">
                 Your trusted marketplace for renting everything you need.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Products</Link></li>
-                <li><Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>About Us</Link></li>
-                <li><Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Contact</Link></li>
+                <li><Link href="/products" className="hover:opacity-80 transition-opacity text-secondary-400">Products</Link></li>
+                <li><Link href="/about" className="hover:opacity-80 transition-opacity text-secondary-400">About Us</Link></li>
+                <li><Link href="/contact" className="hover:opacity-80 transition-opacity text-secondary-400">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Support</h4>
+              <h4 className="font-semibold mb-4 text-white">Support</h4>
               <ul className="space-y-2">
-                <li><Link href="/help" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Help Center</Link></li>
-                <li><Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Terms & Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Privacy Policy</Link></li>
+                <li><Link href="/help" className="hover:opacity-80 transition-opacity text-secondary-400">Help Center</Link></li>
+                <li><Link href="/terms" className="hover:opacity-80 transition-opacity text-secondary-400">Terms & Conditions</Link></li>
+                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity text-secondary-400">Privacy Policy</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Contact Info</h4>
-              <div className="space-y-2" style={{ color: "var(--dusty-denim)" }}>
+              <h4 className="font-semibold mb-4 text-white">Contact Info</h4>
+              <div className="space-y-2 text-secondary-400">
                 <p>Email: support@rentmarket.com</p>
                 <p>Phone: (555) 123-4567</p>
               </div>
             </div>
           </div>
-          <div className="border-t mt-8 pt-8 text-center" style={{ borderColor: "var(--blue-slate)", color: "var(--dusty-denim)" }}>
+          <div className="border-t border-secondary-700 mt-8 pt-8 text-center text-secondary-400">
             <p>&copy; 2024 RentMarket. All rights reserved.</p>
           </div>
         </div>

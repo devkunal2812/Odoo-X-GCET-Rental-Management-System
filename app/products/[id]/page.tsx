@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ShoppingCartIcon, HeartIcon, UserIcon, StarIcon } from "@heroicons/react/24/outline";
+import Header from "../../../components/Header";
+import { ShoppingCartIcon, HeartIcon, StarIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
+import { addToCart } from "../../../lib/cart";
 
 // Mock product data
 const mockProduct = {
@@ -93,128 +95,109 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
-    // Add to cart logic here
-    console.log("Adding to cart:", {
+    console.log('Adding product to cart from detail page:', {
       productId: params.id,
       quantity,
       rentalDuration,
+      selectedRentalPeriod,
+      selectedAttributes
+    }); // Debug log
+    
+    addToCart({
+      productId: params.id as string,
+      product: {
+        id: mockProduct.id,
+        name: mockProduct.name,
+        image: mockProduct.images[0],
+        vendor: mockProduct.vendor.name
+      },
+      quantity,
+      rentalDuration,
       rentalUnit: selectedRentalPeriod.unit,
-      selectedAttributes,
-      totalPrice
+      unitPrice: selectedRentalPeriod.price,
+      selectedAttributes
     });
-    alert("Added to cart!");
+    
+    alert(`${mockProduct.name} added to cart!`);
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--white-smoke)" }}>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold" style={{ color: "var(--night-bordeaux)" }}>
-                RentMarket
-              </Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--stone-brown)" }}>
-                Products
-              </Link>
-              <Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--stone-brown)" }}>
-                About Us
-              </Link>
-              <Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--stone-brown)" }}>
-                Contact Us
-              </Link>
-              <Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--stone-brown)" }}>
-                Terms & Conditions
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-4">
-              <Link href="/wishlist" className="hover:opacity-80 transition-opacity" style={{ color: "var(--stone-brown)" }}>
-                <HeartIcon className="h-6 w-6" />
-              </Link>
-              <Link href="/cart" className="hover:opacity-80 transition-opacity relative" style={{ color: "var(--stone-brown)" }}>
-                <ShoppingCartIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--night-bordeaux)" }}>
-                  0
-                </span>
-              </Link>
-              <Link href="/login" className="hover:opacity-80 transition-opacity" style={{ color: "var(--stone-brown)" }}>
-                <UserIcon className="h-6 w-6" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-secondary-50">
+      <Header currentPage="products" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="mb-8">
-          <ol className="flex items-center space-x-2 text-sm">
-            <li><Link href="/" className="hover:underline" style={{ color: "var(--night-bordeaux)" }}>Home</Link></li>
-            <li style={{ color: "var(--stone-brown)" }}>/</li>
-            <li><Link href="/products" className="hover:underline" style={{ color: "var(--night-bordeaux)" }}>Products</Link></li>
-            <li style={{ color: "var(--stone-brown)" }}>/</li>
-            <li style={{ color: "var(--black)" }}>{mockProduct.name}</li>
+          <ol className="flex items-center space-x-2 text-sm bg-white px-4 py-3 rounded-lg shadow-sm">
+            <li><Link href="/" className="hover:underline font-medium text-secondary-600">Home</Link></li>
+            <li className="text-secondary-400">/</li>
+            <li><Link href="/products" className="hover:underline font-medium text-secondary-600">Products</Link></li>
+            <li className="text-secondary-400">/</li>
+            <li className="font-semibold text-secondary-900">{mockProduct.name}</li>
           </ol>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Product Images */}
-          <div>
+          <div className="bg-white p-6 rounded-2xl shadow-lg">
             <div className="mb-4">
-              <div className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden">
-                <div className="w-full h-96 rounded-lg" style={{ backgroundColor: "var(--dusty-taupe)" }}></div>
+              <div className="aspect-w-4 aspect-h-3 rounded-xl overflow-hidden shadow-md">
+                <div className="w-full h-96 rounded-xl flex items-center justify-center text-white text-lg font-semibold bg-secondary-400">
+                  {mockProduct.name} - Image {selectedImage + 1}
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {mockProduct.images.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`aspect-w-1 aspect-h-1 rounded-lg overflow-hidden ${
-                    selectedImage === index ? 'ring-2' : ''
+                  className={`aspect-w-1 aspect-h-1 rounded-lg overflow-hidden transition-all hover:shadow-md ${
+                    selectedImage === index ? 'ring-4 ring-primary-500 ring-opacity-50' : 'ring-2 ring-transparent'
                   }`}
-                  style={{ ringColor: selectedImage === index ? "var(--night-bordeaux)" : "transparent" }}
+                  style={{ 
+                    borderColor: selectedImage === index ? "var(--primary-500)" : "var(--secondary-200)",
+                    borderWidth: "2px"
+                  } as React.CSSProperties}
                 >
-                  <div className="w-full h-24 rounded-lg" style={{ backgroundColor: "var(--dusty-taupe)" }}></div>
+                  <div className="w-full h-24 rounded-lg flex items-center justify-center text-white text-sm font-medium bg-secondary-400">
+                    {index + 1}
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Product Info */}
-          <div>
+          <div className="bg-white p-8 rounded-2xl shadow-lg">
             <div className="flex justify-between items-start mb-4">
-              <h1 className="text-3xl font-bold" style={{ color: "var(--black)" }}>{mockProduct.name}</h1>
+              <h1 className="text-3xl font-bold text-secondary-900">{mockProduct.name}</h1>
               <button
                 onClick={() => setIsWishlisted(!isWishlisted)}
                 className="p-2 rounded-full hover:bg-gray-100"
               >
                 {isWishlisted ? (
-                  <HeartSolidIcon className="h-6 w-6" style={{ color: "var(--night-bordeaux)" }} />
+                  <HeartSolidIcon className="h-6 w-6 text-primary-600" />
                 ) : (
-                  <HeartIcon className="h-6 w-6" style={{ color: "var(--stone-brown)" }} />
+                  <HeartIcon className="h-6 w-6 text-secondary-600" />
                 )}
               </button>
             </div>
 
             {/* Vendor Info */}
-            <div className="flex items-center mb-4">
-              <div className="w-10 h-10 rounded-full mr-3" style={{ backgroundColor: "var(--dusty-taupe)" }}></div>
+            <div className="flex items-center mb-6 p-4 rounded-xl bg-secondary-100">
+              <div className="w-12 h-12 rounded-full mr-4 flex items-center justify-center text-white font-bold bg-secondary-600">
+                {mockProduct.vendor.name.charAt(0)}
+              </div>
               <div>
-                <p className="font-medium" style={{ color: "var(--black)" }}>{mockProduct.vendor.name}</p>
+                <p className="font-bold text-lg text-secondary-900">{mockProduct.vendor.name}</p>
                 <div className="flex items-center">
                   <div className="flex text-yellow-400 mr-2">
                     {[...Array(5)].map((_, i) => (
                       <StarSolidIcon key={i} className={`h-4 w-4 ${i < Math.floor(mockProduct.vendor.rating) ? 'text-yellow-400' : 'text-gray-300'}`} />
                     ))}
                   </div>
-                  <span className="text-sm" style={{ color: "var(--stone-brown)" }}>
+                  <span className="text-sm font-medium text-secondary-600">
                     {mockProduct.vendor.rating} ({mockProduct.vendor.reviews} reviews)
                   </span>
                 </div>
@@ -228,17 +211,17 @@ export default function ProductDetailPage() {
                   <StarSolidIcon key={i} className={`h-5 w-5 ${i < Math.floor(mockProduct.rating) ? 'text-yellow-400' : 'text-gray-300'}`} />
                 ))}
               </div>
-              <span style={{ color: "var(--stone-brown)" }}>
+              <span className="text-secondary-600">
                 {mockProduct.rating} ({mockProduct.reviews} reviews)
               </span>
             </div>
 
             {/* Description */}
-            <p className="mb-6" style={{ color: "var(--stone-brown)" }}>{mockProduct.description}</p>
+            <p className="mb-6 text-secondary-700">{mockProduct.description}</p>
 
             {/* Rental Period Selection */}
             <div className="mb-6">
-              <h3 className="font-semibold mb-3" style={{ color: "var(--black)" }}>Rental Period</h3>
+              <h3 className="font-semibold mb-3 text-secondary-900">Rental Period</h3>
               <div className="grid grid-cols-3 gap-2">
                 {mockProduct.rentalPeriods.map((period) => (
                   <button
@@ -246,14 +229,9 @@ export default function ProductDetailPage() {
                     onClick={() => setSelectedRentalPeriod(period)}
                     className={`p-3 border-2 rounded-lg text-center transition-colors ${
                       selectedRentalPeriod.unit === period.unit
-                        ? 'text-white'
-                        : 'hover:opacity-80'
+                        ? 'text-white bg-primary-600 border-primary-600'
+                        : 'hover:opacity-80 border-secondary-300 text-secondary-900'
                     }`}
-                    style={{
-                      backgroundColor: selectedRentalPeriod.unit === period.unit ? "var(--night-bordeaux)" : "transparent",
-                      borderColor: selectedRentalPeriod.unit === period.unit ? "var(--night-bordeaux)" : "var(--dusty-taupe)",
-                      color: selectedRentalPeriod.unit === period.unit ? "var(--white-smoke)" : "var(--black)"
-                    }}
                   >
                     <div className="font-semibold">${period.price}</div>
                     <div className="text-sm">per {period.unit}</div>
@@ -265,7 +243,7 @@ export default function ProductDetailPage() {
             {/* Attributes */}
             {mockProduct.attributes.map((attribute) => (
               <div key={attribute.id} className="mb-6">
-                <h3 className="font-semibold mb-3" style={{ color: "var(--black)" }}>{attribute.name}</h3>
+                <h3 className="font-semibold mb-3 text-secondary-900">{attribute.name}</h3>
                 {attribute.displayType === 'pills' && (
                   <div className="flex flex-wrap gap-2">
                     {attribute.values.map((value) => (
@@ -274,14 +252,9 @@ export default function ProductDetailPage() {
                         onClick={() => handleAttributeChange(attribute.id, value)}
                         className={`px-4 py-2 border-2 rounded-full transition-colors ${
                           selectedAttributes[attribute.id] === value
-                            ? 'text-white'
-                            : 'hover:opacity-80'
+                            ? 'bg-secondary-600 border-secondary-600 text-white'
+                            : 'border-secondary-300 text-secondary-900 hover:opacity-80'
                         }`}
-                        style={{
-                          backgroundColor: selectedAttributes[attribute.id] === value ? "var(--night-bordeaux)" : "transparent",
-                          borderColor: selectedAttributes[attribute.id] === value ? "var(--night-bordeaux)" : "var(--dusty-taupe)",
-                          color: selectedAttributes[attribute.id] === value ? "var(--white-smoke)" : "var(--black)"
-                        }}
                       >
                         {value}
                       </button>
@@ -298,10 +271,9 @@ export default function ProductDetailPage() {
                           value={value}
                           checked={selectedAttributes[attribute.id] === value}
                           onChange={(e) => handleAttributeChange(attribute.id, e.target.value)}
-                          className="mr-2"
-                          style={{ accentColor: "var(--night-bordeaux)" }}
+                          className="mr-2 accent-secondary-600"
                         />
-                        <span style={{ color: "var(--black)" }}>{value}</span>
+                        <span className="text-secondary-900">{value}</span>
                       </label>
                     ))}
                   </div>
@@ -312,24 +284,19 @@ export default function ProductDetailPage() {
             {/* Quantity and Duration */}
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--black)" }}>Quantity</label>
+                <label className="block text-sm font-medium mb-2 text-secondary-900">Quantity</label>
                 <select
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full border-2 rounded-lg px-3 py-2"
-                  style={{ 
-                    borderColor: "var(--dusty-taupe)",
-                    color: "var(--black)",
-                    backgroundColor: "var(--white-smoke)"
-                  }}
+                  className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white"
                 >
                   {[...Array(mockProduct.quantityOnHand)].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    <option key={i + 1} value={i + 1} className="text-secondary-900 bg-white">{i + 1}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--black)" }}>
+                <label className="block text-sm font-medium mb-2 text-secondary-900">
                   Duration ({selectedRentalPeriod.unit}s)
                 </label>
                 <input
@@ -337,23 +304,18 @@ export default function ProductDetailPage() {
                   min={selectedRentalPeriod.minDuration}
                   value={rentalDuration}
                   onChange={(e) => setRentalDuration(Number(e.target.value))}
-                  className="w-full border-2 rounded-lg px-3 py-2"
-                  style={{ 
-                    borderColor: "var(--dusty-taupe)",
-                    color: "var(--black)",
-                    backgroundColor: "var(--white-smoke)"
-                  }}
+                  className="w-full border-2 border-secondary-300 rounded-lg px-3 py-2 text-secondary-900 bg-white"
                 />
               </div>
             </div>
 
             {/* Price Summary */}
-            <div className="p-4 rounded-lg mb-6" style={{ backgroundColor: "var(--dusty-taupe)" }}>
+            <div className="p-4 rounded-lg mb-6 bg-white border-2 border-secondary-300">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold" style={{ color: "var(--white-smoke)" }}>Total Price:</span>
-                <span className="text-2xl font-bold" style={{ color: "var(--night-bordeaux)" }}>${totalPrice}</span>
+                <span className="text-lg font-semibold text-secondary-900">Total Price:</span>
+                <span className="text-2xl font-bold text-primary-600">${totalPrice}</span>
               </div>
-              <p className="text-sm mt-1" style={{ color: "var(--stone-brown)" }}>
+              <p className="text-sm mt-1 text-secondary-600">
                 {quantity} × ${selectedRentalPeriod.price} × {rentalDuration} {selectedRentalPeriod.unit}(s)
               </p>
             </div>
@@ -361,76 +323,85 @@ export default function ProductDetailPage() {
             {/* Add to Cart Button */}
             <button
               onClick={handleAddToCart}
-              className="w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--night-bordeaux)" }}
+              className="w-full py-4 px-6 rounded-xl font-bold text-lg text-white transition-all hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-3 bg-gradient-to-r from-primary-600 to-primary-700"
             >
-              Add to Cart
+              <ShoppingCartIcon className="h-6 w-6" />
+              <span>Add to Cart - ${totalPrice}</span>
             </button>
           </div>
         </div>
 
         {/* Reviews Section */}
         <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "var(--black)" }}>Customer Reviews</h2>
-          <div className="space-y-6">
-            {mockReviews.map((review) => (
-              <div key={review.id} className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 rounded-full mr-3" style={{ backgroundColor: "var(--dusty-taupe)" }}></div>
-                    <div>
-                      <p className="font-medium" style={{ color: "var(--black)" }}>{review.customerName}</p>
-                      <div className="flex text-yellow-400">
-                        {[...Array(5)].map((_, i) => (
-                          <StarSolidIcon key={i} className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`} />
-                        ))}
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <h2 className="text-3xl font-bold mb-8 flex items-center text-secondary-900">
+              <StarSolidIcon className="h-8 w-8 text-yellow-400 mr-3" />
+              Customer Reviews ({mockReviews.length})
+            </h2>
+            <div className="space-y-6">
+              {mockReviews.map((review) => (
+                <div key={review.id} className="p-6 rounded-xl border-2 border-secondary-200 bg-white hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 rounded-full mr-4 flex items-center justify-center text-white font-bold bg-secondary-600">
+                        {review.customerName.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-lg text-secondary-900">{review.customerName}</p>
+                        <div className="flex text-yellow-400">
+                          {[...Array(5)].map((_, i) => (
+                            <StarSolidIcon key={i} className={`h-5 w-5 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
                       </div>
                     </div>
+                    <span className="text-sm font-medium px-3 py-1 rounded-full text-secondary-600 bg-secondary-100">
+                      {review.date}
+                    </span>
                   </div>
-                  <span className="text-sm" style={{ color: "var(--stone-brown)" }}>{review.date}</span>
+                  <p className="text-lg leading-relaxed text-secondary-700">{review.comment}</p>
                 </div>
-                <p style={{ color: "var(--stone-brown)" }}>{review.comment}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="text-white py-12 mt-16" style={{ backgroundColor: "var(--black)" }}>
+      <footer className="bg-secondary-900 text-white py-12 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4" style={{ color: "var(--white-smoke)" }}>RentMarket</h3>
-              <p style={{ color: "var(--dusty-taupe)" }}>
+              <h3 className="text-xl font-bold mb-4 text-white">RentMarket</h3>
+              <p className="text-secondary-400">
                 Your trusted marketplace for renting everything you need.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--white-smoke)" }}>Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-taupe)" }}>Products</Link></li>
-                <li><Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-taupe)" }}>About Us</Link></li>
-                <li><Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-taupe)" }}>Contact</Link></li>
+                <li><Link href="/products" className="hover:opacity-80 transition-opacity text-secondary-400">Products</Link></li>
+                <li><Link href="/about" className="hover:opacity-80 transition-opacity text-secondary-400">About Us</Link></li>
+                <li><Link href="/contact" className="hover:opacity-80 transition-opacity text-secondary-400">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--white-smoke)" }}>Support</h4>
+              <h4 className="font-semibold mb-4 text-white">Support</h4>
               <ul className="space-y-2">
-                <li><Link href="/help" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-taupe)" }}>Help Center</Link></li>
-                <li><Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-taupe)" }}>Terms & Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-taupe)" }}>Privacy Policy</Link></li>
+                <li><Link href="/help" className="hover:opacity-80 transition-opacity text-secondary-400">Help Center</Link></li>
+                <li><Link href="/terms" className="hover:opacity-80 transition-opacity text-secondary-400">Terms & Conditions</Link></li>
+                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity text-secondary-400">Privacy Policy</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--white-smoke)" }}>Contact Info</h4>
-              <div className="space-y-2" style={{ color: "var(--dusty-taupe)" }}>
+              <h4 className="font-semibold mb-4 text-white">Contact Info</h4>
+              <div className="space-y-2 text-secondary-400">
                 <p>Email: support@rentmarket.com</p>
                 <p>Phone: (555) 123-4567</p>
               </div>
             </div>
           </div>
-          <div className="border-t mt-8 pt-8 text-center" style={{ borderColor: "var(--stone-brown)", color: "var(--dusty-taupe)" }}>
+          <div className="border-t border-secondary-700 mt-8 pt-8 text-center text-secondary-400">
             <p>&copy; 2024 RentMarket. All rights reserved.</p>
           </div>
         </div>

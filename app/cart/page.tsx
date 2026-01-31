@@ -1,68 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingCartIcon, HeartIcon, UserIcon, TrashIcon, MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
-
-// Mock cart data
-const mockCartItems = [
-  {
-    id: "1",
-    productId: "1",
-    product: {
-      id: "1",
-      name: "Professional Camera Kit",
-      image: "/api/placeholder/150/150",
-      vendor: "TechRent Pro"
-    },
-    quantity: 1,
-    rentalDuration: 3,
-    rentalUnit: "day" as const,
-    unitPrice: 25,
-    selectedAttributes: { color: "Black", lens: "Professional Kit" }
-  },
-  {
-    id: "2", 
-    productId: "2",
-    product: {
-      id: "2",
-      name: "Power Drill Set",
-      image: "/api/placeholder/150/150",
-      vendor: "ToolMaster"
-    },
-    quantity: 2,
-    rentalDuration: 1,
-    rentalUnit: "week" as const,
-    unitPrice: 80,
-    selectedAttributes: { color: "Red" }
-  }
-];
+import Header from "../../components/Header";
+import { TrashIcon, MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { ShoppingCartIcon } from "@heroicons/react/24/outline";
+import { 
+  getCartItems, 
+  updateCartItemQuantity, 
+  updateCartItemDuration, 
+  removeFromCart,
+  type CartItem 
+} from "../../lib/cart";
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState(mockCartItems);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount: number} | null>(null);
 
+  // Load cart items from localStorage
+  useEffect(() => {
+    const loadCartItems = () => {
+      const items = getCartItems();
+      setCartItems(items);
+    };
+
+    loadCartItems();
+
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      loadCartItems();
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, []);
+
   const updateQuantity = (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    setCartItems(prev => 
-      prev.map(item => 
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
+    updateCartItemQuantity(itemId, newQuantity);
   };
 
   const updateDuration = (itemId: string, newDuration: number) => {
-    if (newDuration < 1) return;
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === itemId ? { ...item, rentalDuration: newDuration } : item
-      )
-    );
+    updateCartItemDuration(itemId, newDuration);
   };
 
   const removeItem = (itemId: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== itemId));
+    removeFromCart(itemId); 
   };
 
   const applyCoupon = () => {
@@ -87,113 +73,91 @@ export default function CartPage() {
   const total = subtotal - discountAmount;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--eggshell)" }}>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold" style={{ color: "var(--deep-space-blue)" }}>
-                RentMarket
-              </Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Products
-              </Link>
-              <Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                About Us
-              </Link>
-              <Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Contact Us
-              </Link>
-              <Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                Terms & Conditions
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-4">
-              <Link href="/wishlist" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <HeartIcon className="h-6 w-6" />
-              </Link>
-              <Link href="/cart" className="relative" style={{ color: "var(--deep-space-blue)" }}>
-                <ShoppingCartIcon className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      style={{ backgroundColor: "var(--deep-space-blue)" }}>
-                  {cartItems.length}
-                </span>
-              </Link>
-              <Link href="/login" className="hover:opacity-80 transition-opacity" style={{ color: "var(--blue-slate)" }}>
-                <UserIcon className="h-6 w-6" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <Header currentPage="cart" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-8" style={{ color: "var(--ink-black)" }}>Shopping Cart</h1>
+        {/* Page Header with gradient background */}
+        <div className="text-center mb-12 py-8 px-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+          <ShoppingCartIcon className="h-16 w-16 mx-auto mb-4 opacity-80" />
+          <h1 className="text-4xl font-bold mb-2">Shopping Cart</h1>
+          <p className="text-lg opacity-90 text-blue-100">
+            {cartItems.length > 0 ? `${cartItems.length} item${cartItems.length > 1 ? 's' : ''} in your cart` : 'Your cart awaits'}
+          </p>
+        </div>
 
         {cartItems.length === 0 ? (
-          <div className="text-center py-12">
-            <ShoppingCartIcon className="h-24 w-24 mx-auto mb-4" style={{ color: "var(--dusty-denim)" }} />
-            <h2 className="text-2xl font-semibold mb-2" style={{ color: "var(--ink-black)" }}>Your cart is empty</h2>
-            <p className="mb-6" style={{ color: "var(--blue-slate)" }}>Add some products to get started!</p>
-            <Link
-              href="/products"
-              className="px-6 py-3 rounded-lg text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--deep-space-blue)" }}
-            >
-              Browse Products
-            </Link>
+          <div className="text-center py-16">
+            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-md mx-auto">
+              <div className="w-32 h-32 mx-auto mb-6 rounded-full flex items-center justify-center bg-gray-100">
+                <ShoppingCartIcon className="h-16 w-16 text-gray-400" />
+              </div>
+              <h2 className="text-3xl font-bold mb-4 text-gray-900">Your cart is empty</h2>
+              <p className="text-lg mb-8 text-gray-600">
+                Discover amazing products and start your rental journey!
+              </p>
+              <Link
+                href="/products"
+                className="inline-flex items-center px-8 py-4 rounded-xl font-semibold text-lg transition-all hover:shadow-lg transform hover:scale-105 bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+              >
+                <ShoppingCartIcon className="h-5 w-5 mr-2" />
+                Browse Products
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="p-6 border-b" style={{ borderColor: "var(--dusty-denim)" }}>
-                  <h2 className="text-xl font-semibold" style={{ color: "var(--ink-black)" }}>Cart Items ({cartItems.length})</h2>
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="p-6 border-b-2 bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200">
+                  <h2 className="text-2xl font-bold flex items-center text-gray-900">
+                    <ShoppingCartIcon className="h-6 w-6 mr-3 text-blue-600" />
+                    Cart Items ({cartItems.length})
+                  </h2>
                 </div>
                 
-                <div className="divide-y" style={{ borderColor: "var(--dusty-denim)" }}>
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="p-6">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-24 h-24 rounded-lg flex-shrink-0" style={{ backgroundColor: "var(--dusty-denim)" }}></div>
+                <div className="divide-y-2 divide-gray-100">
+                  {cartItems.map((item, index) => (
+                    <div key={item.id} className="p-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start space-x-6">
+                        {/* Product Image with gradient overlay */}
+                        <div className="relative w-28 h-28 rounded-xl flex-shrink-0 overflow-hidden shadow-lg">
+                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100"></div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                          <div className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-gray-900">
+                            {index + 1}
+                          </div>
+                        </div>
                         
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-medium" style={{ color: "var(--ink-black)" }}>{item.product.name}</h3>
-                          <p className="text-sm" style={{ color: "var(--blue-slate)" }}>by {item.product.vendor}</p>
+                          <h3 className="text-xl font-bold mb-1 text-gray-900">{item.product.name}</h3>
+                          <p className="text-sm font-medium mb-3 text-gray-600">by {item.product.vendor}</p>
                           
-                          {/* Selected Attributes */}
-                          <div className="mt-2">
-                            {Object.entries(item.selectedAttributes).map(([key, value]) => (
-                              <span key={key} className="inline-block text-xs px-2 py-1 rounded mr-2"
-                                    style={{ backgroundColor: "var(--dusty-denim)", color: "var(--eggshell)" }}>
+                          {/* Selected Attributes with better styling */}
+                          <div className="mb-4">
+                            {item.selectedAttributes && Object.entries(item.selectedAttributes).map(([key, value]) => (
+                              <span key={key} className="inline-block text-xs px-3 py-1 rounded-full mr-2 mb-1 font-medium shadow-sm bg-blue-50 text-blue-700">
                                 {key}: {value}
                               </span>
                             ))}
                           </div>
 
-                          {/* Quantity and Duration Controls */}
-                          <div className="mt-4 flex items-center space-x-6">
+                          {/* Quantity and Duration Controls with better styling */}
+                          <div className="flex flex-wrap items-center gap-6">
                             <div className="flex items-center">
-                              <label className="text-sm font-medium mr-2" style={{ color: "var(--ink-black)" }}>Qty:</label>
-                              <div className="flex items-center border-2 rounded" style={{ borderColor: "var(--dusty-denim)" }}>
+                              <label className="text-sm font-bold mr-3 text-gray-900">Quantity:</label>
+                              <div className="flex items-center bg-white border-2 rounded-lg shadow-sm border-gray-200">
                                 <button
                                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                  className="p-1 hover:opacity-80"
-                                  style={{ color: "var(--blue-slate)" }}
+                                  className="p-2 hover:bg-gray-100 transition-colors rounded-l-lg text-gray-600"
                                 >
                                   <MinusIcon className="h-4 w-4" />
                                 </button>
-                                <span className="px-3 py-1 text-sm" style={{ color: "var(--ink-black)" }}>{item.quantity}</span>
+                                <span className="px-4 py-2 text-sm font-bold min-w-[3rem] text-center text-gray-900">{item.quantity}</span>
                                 <button
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                  className="p-1 hover:opacity-80"
-                                  style={{ color: "var(--blue-slate)" }}
+                                  className="p-2 hover:bg-gray-100 transition-colors rounded-r-lg text-gray-600"
                                 >
                                   <PlusIcon className="h-4 w-4" />
                                 </button>
@@ -201,22 +165,20 @@ export default function CartPage() {
                             </div>
 
                             <div className="flex items-center">
-                              <label className="text-sm font-medium mr-2" style={{ color: "var(--ink-black)" }}>
+                              <label className="text-sm font-bold mr-3 text-gray-900">
                                 Duration ({item.rentalUnit}s):
                               </label>
-                              <div className="flex items-center border-2 rounded" style={{ borderColor: "var(--dusty-denim)" }}>
+                              <div className="flex items-center bg-white border-2 rounded-lg shadow-sm border-gray-200">
                                 <button
                                   onClick={() => updateDuration(item.id, item.rentalDuration - 1)}
-                                  className="p-1 hover:opacity-80"
-                                  style={{ color: "var(--blue-slate)" }}
+                                  className="p-2 hover:bg-gray-100 transition-colors rounded-l-lg text-gray-600"
                                 >
                                   <MinusIcon className="h-4 w-4" />
                                 </button>
-                                <span className="px-3 py-1 text-sm" style={{ color: "var(--ink-black)" }}>{item.rentalDuration}</span>
+                                <span className="px-4 py-2 text-sm font-bold min-w-[3rem] text-center text-gray-900">{item.rentalDuration}</span>
                                 <button
                                   onClick={() => updateDuration(item.id, item.rentalDuration + 1)}
-                                  className="p-1 hover:opacity-80"
-                                  style={{ color: "var(--blue-slate)" }}
+                                  className="p-2 hover:bg-gray-100 transition-colors rounded-r-lg text-gray-600"
                                 >
                                   <PlusIcon className="h-4 w-4" />
                                 </button>
@@ -225,17 +187,17 @@ export default function CartPage() {
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <div className="text-lg font-semibold" style={{ color: "var(--ink-black)" }}>
+                        {/* Price and Remove Button */}
+                        <div className="text-right flex flex-col items-end">
+                          <div className="text-2xl font-bold mb-1 text-gray-900">
                             ${item.unitPrice * item.quantity * item.rentalDuration}
                           </div>
-                          <div className="text-sm" style={{ color: "var(--blue-slate)" }}>
+                          <div className="text-sm mb-4 text-gray-600">
                             ${item.unitPrice} × {item.quantity} × {item.rentalDuration} {item.rentalUnit}(s)
                           </div>
                           <button
                             onClick={() => removeItem(item.id)}
-                            className="mt-2 hover:opacity-80 transition-opacity"
-                            style={{ color: "var(--deep-space-blue)" }}
+                            className="p-2 rounded-lg hover:bg-red-50 transition-all transform hover:scale-110 shadow-sm text-red-600 bg-white border border-red-200"
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -246,12 +208,11 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Continue Shopping */}
-              <div className="mt-6">
+              {/* Continue Shopping with better styling */}
+              <div className="mt-8 text-center">
                 <Link
                   href="/products"
-                  className="font-medium hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--deep-space-blue)" }}
+                  className="inline-flex items-center px-6 py-3 rounded-xl font-semibold transition-all hover:shadow-lg transform hover:scale-105 bg-white text-blue-600 border-2 border-blue-600 hover:bg-blue-50"
                 >
                   ← Continue Shopping
                 </Link>
@@ -260,88 +221,87 @@ export default function CartPage() {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
-                <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--ink-black)" }}>Order Summary</h2>
-
-                {/* Coupon Code */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium mb-2" style={{ color: "var(--ink-black)" }}>
-                    Coupon Code
-                  </label>
-                  {appliedCoupon ? (
-                    <div className="flex items-center justify-between p-3 rounded-lg border-2"
-                         style={{ backgroundColor: "var(--dusty-denim)", borderColor: "var(--dusty-denim)" }}>
-                      <span className="font-medium" style={{ color: "var(--eggshell)" }}>{appliedCoupon.code}</span>
-                      <button
-                        onClick={removeCoupon}
-                        className="hover:opacity-80 transition-opacity"
-                        style={{ color: "var(--deep-space-blue)" }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex">
-                      <input
-                        type="text"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        placeholder="Enter coupon code"
-                        className="flex-1 border-2 rounded-l-lg px-3 py-2 focus:outline-none focus:ring-2"
-                        style={{ 
-                          borderColor: "var(--dusty-denim)",
-                          color: "var(--ink-black)",
-                          backgroundColor: "var(--eggshell)"
-                        }}
-                      />
-                      <button
-                        onClick={applyCoupon}
-                        className="border-2 border-l-0 rounded-r-lg px-4 py-2 hover:opacity-80 transition-opacity"
-                        style={{ 
-                          backgroundColor: "var(--dusty-denim)", 
-                          borderColor: "var(--dusty-denim)",
-                          color: "var(--eggshell)"
-                        }}
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  )}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden sticky top-6">
+                {/* Header with gradient */}
+                <div className="p-6 border-b-2 bg-gradient-to-r from-blue-600 to-purple-600 border-gray-200">
+                  <h2 className="text-2xl font-bold text-white">Order Summary</h2>
                 </div>
 
-                {/* Price Breakdown */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between">
-                    <span style={{ color: "var(--ink-black)" }}>Subtotal</span>
-                    <span style={{ color: "var(--ink-black)" }}>${subtotal.toFixed(2)}</span>
+                <div className="p-6">
+                  {/* Coupon Code Section */}
+                  <div className="mb-8">
+                    <label className="block text-sm font-bold mb-3 text-gray-900">
+                      🎟️ Coupon Code
+                    </label>
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between p-4 rounded-xl shadow-sm bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-green-500">
+                            <span className="text-white text-sm font-bold">✓</span>
+                          </div>
+                          <span className="font-bold text-gray-900">{appliedCoupon.code}</span>
+                        </div>
+                        <button
+                          onClick={removeCoupon}
+                          className="px-3 py-1 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity bg-red-100 text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex rounded-xl overflow-hidden shadow-sm border-2 border-gray-200">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCouponCode(e.target.value)}
+                          placeholder="Enter coupon code"
+                          className="flex-1 px-4 py-3 focus:outline-none text-gray-900 bg-white"
+                        />
+                        <button
+                          onClick={applyCoupon}
+                          className="px-6 py-3 font-bold transition-all hover:opacity-90 bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {appliedCoupon && (
-                    <div className="flex justify-between" style={{ color: "var(--deep-space-blue)" }}>
-                      <span>Discount ({(appliedCoupon.discount * 100).toFixed(0)}%)</span>
-                      <span>-${discountAmount.toFixed(2)}</span>
+
+                  {/* Price Breakdown with better styling */}
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between items-center py-2">
+                      <span className="font-medium text-gray-900">Subtotal</span>
+                      <span className="font-bold text-lg text-gray-900">${subtotal.toFixed(2)}</span>
                     </div>
-                  )}
-                  <div className="border-t pt-3" style={{ borderColor: "var(--dusty-denim)" }}>
-                    <div className="flex justify-between text-lg font-semibold">
-                      <span style={{ color: "var(--ink-black)" }}>Total</span>
-                      <span style={{ color: "var(--ink-black)" }}>${total.toFixed(2)}</span>
+                    {appliedCoupon && (
+                      <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-green-100 text-green-700">
+                        <span className="font-medium">💰 Discount ({(appliedCoupon.discount * 100).toFixed(0)}%)</span>
+                        <span className="font-bold">-${discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="border-t-2 pt-4 border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xl font-bold text-gray-900">Total</span>
+                        <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Checkout Button with gradient */}
+                  <Link
+                    href="/checkout"
+                    className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all hover:shadow-lg transform hover:scale-105 text-center block mb-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                  >
+                    🚀 Proceed to Checkout
+                  </Link>
+
+                  {/* Security Note with icon */}
+                  <div className="text-center p-3 rounded-lg bg-gray-50">
+                    <p className="text-sm font-medium text-gray-600">
+                      🔒 Secure checkout with SSL encryption
+                    </p>
                   </div>
                 </div>
-
-                {/* Checkout Button */}
-                <Link
-                  href="/checkout"
-                  className="w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors hover:opacity-90 text-center block"
-                  style={{ backgroundColor: "var(--deep-space-blue)" }}
-                >
-                  Proceed to Checkout
-                </Link>
-
-                {/* Security Note */}
-                <p className="text-xs mt-4 text-center" style={{ color: "var(--blue-slate)" }}>
-                  Secure checkout with SSL encryption
-                </p>
               </div>
             </div>
           </div>
@@ -349,40 +309,40 @@ export default function CartPage() {
       </div>
 
       {/* Footer */}
-      <footer className="text-white py-12 mt-16" style={{ backgroundColor: "var(--ink-black)" }}>
+      <footer className="text-white py-12 mt-16 bg-secondary-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4" style={{ color: "var(--eggshell)" }}>RentMarket</h3>
-              <p style={{ color: "var(--dusty-denim)" }}>
+              <h3 className="text-xl font-bold mb-4 text-white">RentMarket</h3>
+              <p className="text-secondary-300">
                 Your trusted marketplace for renting everything you need.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link href="/products" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Products</Link></li>
-                <li><Link href="/about" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>About Us</Link></li>
-                <li><Link href="/contact" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Contact</Link></li>
+                <li><Link href="/products" className="hover:opacity-80 transition-opacity text-secondary-300">Products</Link></li>
+                <li><Link href="/about" className="hover:opacity-80 transition-opacity text-secondary-300">About Us</Link></li>
+                <li><Link href="/contact" className="hover:opacity-80 transition-opacity text-secondary-300">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Support</h4>
+              <h4 className="font-semibold mb-4 text-white">Support</h4>
               <ul className="space-y-2">
-                <li><Link href="/help" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Help Center</Link></li>
-                <li><Link href="/terms" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Terms & Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity" style={{ color: "var(--dusty-denim)" }}>Privacy Policy</Link></li>
+                <li><Link href="/help" className="hover:opacity-80 transition-opacity text-secondary-300">Help Center</Link></li>
+                <li><Link href="/terms" className="hover:opacity-80 transition-opacity text-secondary-300">Terms & Conditions</Link></li>
+                <li><Link href="/privacy" className="hover:opacity-80 transition-opacity text-secondary-300">Privacy Policy</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4" style={{ color: "var(--eggshell)" }}>Contact Info</h4>
-              <div className="space-y-2" style={{ color: "var(--dusty-denim)" }}>
+              <h4 className="font-semibold mb-4 text-white">Contact Info</h4>
+              <div className="space-y-2 text-secondary-300">
                 <p>Email: support@rentmarket.com</p>
                 <p>Phone: (555) 123-4567</p>
               </div>
             </div>
           </div>
-          <div className="border-t mt-8 pt-8 text-center" style={{ borderColor: "var(--blue-slate)", color: "var(--dusty-denim)" }}>
+          <div className="border-t mt-8 pt-8 text-center border-secondary-700 text-secondary-300">
             <p>&copy; 2024 RentMarket. All rights reserved.</p>
           </div>
         </div>

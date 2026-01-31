@@ -1,12 +1,14 @@
 "use client";
 
+import React from "react";
 import { 
   ShoppingBagIcon, 
   CubeIcon, 
   UsersIcon, 
   CurrencyDollarIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  ChartBarIcon
 } from "@heroicons/react/24/outline";
 
 // Mock data
@@ -96,8 +98,8 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--ink-black)" }}>Dashboard</h1>
-        <p style={{ color: "var(--blue-slate)" }}>Welcome back! Here's what's happening with your rental business.</p>
+        <h1 className="text-2xl font-bold text-secondary-900">Dashboard</h1>
+        <p className="text-secondary-600">Welcome back! Here's what's happening with your rental business.</p>
       </div>
 
       {/* Stats Grid */}
@@ -106,25 +108,25 @@ export default function DashboardPage() {
           <div key={stat.name} className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: "var(--blue-slate)" }}>{stat.name}</p>
-                <p className="text-2xl font-bold" style={{ color: "var(--ink-black)" }}>{stat.value}</p>
+                <p className="text-sm font-medium text-secondary-600">{stat.name}</p>
+                <p className="text-2xl font-bold text-secondary-900">{stat.value}</p>
               </div>
-              <div className="p-3 rounded-lg" style={{ backgroundColor: "var(--dusty-denim)" }}>
-                <stat.icon className="h-6 w-6" style={{ color: "var(--eggshell)" }} />
+              <div className="p-3 rounded-lg bg-secondary-400">
+                <stat.icon className="h-6 w-6 text-white" />
               </div>
             </div>
             <div className="mt-4 flex items-center">
               {stat.changeType === "increase" ? (
-                <ArrowUpIcon className="h-4 w-4 mr-1" style={{ color: "var(--deep-space-blue)" }} />
+                <ArrowUpIcon className="h-4 w-4 mr-1 text-primary-600" />
               ) : (
-                <ArrowDownIcon className="h-4 w-4 mr-1" style={{ color: "var(--blue-slate)" }} />
+                <ArrowDownIcon className="h-4 w-4 mr-1 text-secondary-600" />
               )}
-              <span className={`text-sm font-medium`} style={{
-                color: stat.changeType === "increase" ? "var(--deep-space-blue)" : "var(--blue-slate)"
-              }}>
+              <span className={`text-sm font-medium ${
+                stat.changeType === "increase" ? 'text-primary-600' : 'text-secondary-600'
+              }`}>
                 {stat.change}
               </span>
-              <span className="text-sm ml-1" style={{ color: "var(--blue-slate)" }}>from last month</span>
+              <span className="text-sm ml-1 text-secondary-600">from last month</span>
             </div>
           </div>
         ))}
@@ -133,11 +135,10 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Orders */}
         <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b" style={{ borderColor: "var(--dusty-denim)" }}>
+          <div className="p-6 border-b border-secondary-300">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold" style={{ color: "var(--ink-black)" }}>Recent Orders</h2>
-              <a href="/dashboard/orders" className="text-sm font-medium hover:opacity-80 transition-opacity" 
-                 style={{ color: "var(--deep-space-blue)" }}>
+              <h2 className="text-lg font-semibold text-secondary-900">Recent Orders</h2>
+              <a href="/dashboard/orders" className="text-sm font-medium hover:opacity-80 transition-opacity text-primary-600">
                 View all
               </a>
             </div>
@@ -145,21 +146,20 @@ export default function DashboardPage() {
           <div className="p-6">
             <div className="space-y-4">
               {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between py-3 border-b last:border-0" 
-                     style={{ borderColor: "var(--dusty-denim)" }}>
+                <div key={order.id} className="flex items-center justify-between py-3 border-b last:border-0 border-secondary-300">
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium" style={{ color: "var(--ink-black)" }}>{order.id}</p>
+                      <p className="font-medium text-secondary-900">{order.id}</p>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
                         {order.status}
                       </span>
                     </div>
-                    <p className="text-sm" style={{ color: "var(--blue-slate)" }}>{order.customer}</p>
-                    <p className="text-sm" style={{ color: "var(--blue-slate)" }}>{order.product}</p>
+                    <p className="text-sm text-secondary-600">{order.customer}</p>
+                    <p className="text-sm text-secondary-600">{order.product}</p>
                   </div>
                   <div className="text-right ml-4">
-                    <p className="font-semibold" style={{ color: "var(--ink-black)" }}>{order.amount}</p>
-                    <p className="text-sm" style={{ color: "var(--blue-slate)" }}>{order.date}</p>
+                    <p className="font-semibold text-secondary-900">{order.amount}</p>
+                    <p className="text-sm text-secondary-600">{order.date}</p>
                   </div>
                 </div>
               ))}
@@ -169,21 +169,19 @@ export default function DashboardPage() {
 
         {/* Low Stock Alert */}
         <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b" style={{ borderColor: "var(--dusty-denim)" }}>
-            <h2 className="text-lg font-semibold" style={{ color: "var(--ink-black)" }}>Low Stock Alert</h2>
+          <div className="p-6 border-b border-secondary-300">
+            <h2 className="text-lg font-semibold text-secondary-900">Low Stock Alert</h2>
           </div>
           <div className="p-6">
             <div className="space-y-4">
               {lowStockProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between py-3 border-b last:border-0" 
-                     style={{ borderColor: "var(--dusty-denim)" }}>
+                <div key={index} className="flex items-center justify-between py-3 border-b last:border-0 border-secondary-300">
                   <div>
-                    <p className="font-medium" style={{ color: "var(--ink-black)" }}>{product.name}</p>
-                    <p className="text-sm" style={{ color: "var(--blue-slate)" }}>Threshold: {product.threshold} units</p>
+                    <p className="font-medium text-secondary-900">{product.name}</p>
+                    <p className="text-sm text-secondary-600">Threshold: {product.threshold} units</p>
                   </div>
                   <div className="text-right">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: "var(--deep-space-blue)" }}>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white bg-primary-600">
                       {product.stock} left
                     </span>
                   </div>
@@ -191,8 +189,7 @@ export default function DashboardPage() {
               ))}
             </div>
             <div className="mt-4">
-              <a href="/dashboard/products" className="text-sm font-medium hover:opacity-80 transition-opacity" 
-                 style={{ color: "var(--deep-space-blue)" }}>
+              <a href="/dashboard/products" className="text-sm font-medium hover:opacity-80 transition-opacity text-primary-600">
                 Manage inventory →
               </a>
             </div>
@@ -202,36 +199,33 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--ink-black)" }}>Quick Actions</h2>
+        <h2 className="text-lg font-semibold mb-4 text-secondary-900">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <a
             href="/dashboard/orders/new"
-            className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg hover:opacity-80 transition-colors"
-            style={{ borderColor: "var(--dusty-denim)" }}
+            className="flex items-center justify-center p-4 border-2 border-dashed border-secondary-400 rounded-lg hover:opacity-80 transition-colors"
           >
             <div className="text-center">
-              <ShoppingBagIcon className="h-8 w-8 mx-auto mb-2" style={{ color: "var(--dusty-denim)" }} />
-              <p className="text-sm font-medium" style={{ color: "var(--blue-slate)" }}>Create New Order</p>
+              <ShoppingBagIcon className="h-8 w-8 mx-auto mb-2 text-secondary-400" />
+              <p className="text-sm font-medium text-secondary-600">Create New Order</p>
             </div>
           </a>
           <a
             href="/dashboard/products/new"
-            className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg hover:opacity-80 transition-colors"
-            style={{ borderColor: "var(--dusty-denim)" }}
+            className="flex items-center justify-center p-4 border-2 border-dashed border-secondary-400 rounded-lg hover:opacity-80 transition-colors"
           >
             <div className="text-center">
-              <CubeIcon className="h-8 w-8 mx-auto mb-2" style={{ color: "var(--dusty-denim)" }} />
-              <p className="text-sm font-medium" style={{ color: "var(--blue-slate)" }}>Add New Product</p>
+              <CubeIcon className="h-8 w-8 mx-auto mb-2 text-secondary-400" />
+              <p className="text-sm font-medium text-secondary-600">Add New Product</p>
             </div>
           </a>
           <a
             href="/dashboard/reports"
-            className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg hover:opacity-80 transition-colors"
-            style={{ borderColor: "var(--dusty-denim)" }}
+            className="flex items-center justify-center p-4 border-2 border-dashed border-secondary-400 rounded-lg hover:opacity-80 transition-colors"
           >
             <div className="text-center">
-              <ChartBarIcon className="h-8 w-8 mx-auto mb-2" style={{ color: "var(--dusty-denim)" }} />
-              <p className="text-sm font-medium" style={{ color: "var(--blue-slate)" }}>View Reports</p>
+              <ChartBarIcon className="h-8 w-8 mx-auto mb-2 text-secondary-400" />
+              <p className="text-sm font-medium text-secondary-600">View Reports</p>
             </div>
           </a>
         </div>
