@@ -195,19 +195,22 @@ model VariantAttributeValue {
 // ============================================
 
 model SaleOrder {
-  id          String          @id @default(uuid())
-  orderNumber String          @unique
-  customerId  String
-  vendorId    String
-  couponId    String?
-  status      SaleOrderStatus @default(QUOTATION)
-  startDate   DateTime?
-  endDate     DateTime?
-  orderDate   DateTime        @default(now())
-  totalAmount Float           @default(0)
-  discount    Float           @default(0)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id             String          @id @default(uuid())
+  orderNumber    String          @unique
+  customerId     String
+  vendorId       String
+  couponId       String?
+  status         SaleOrderStatus @default(QUOTATION)
+  startDate      DateTime?
+  endDate        DateTime?
+  orderDate      DateTime        @default(now())
+  totalAmount    Float           @default(0)
+  discount       Float           @default(0)
+  pickupDate     DateTime?
+  actualReturnDate DateTime?
+  lateFee        Float           @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   customer     CustomerProfile @relation(fields: [customerId], references: [id])
   vendor       VendorProfile   @relation(fields: [vendorId], references: [id])
@@ -225,6 +228,8 @@ enum SaleOrderStatus {
   SENT
   CONFIRMED
   INVOICED
+  PICKED_UP
+  RETURNED
   CANCELLED
 }
 
@@ -357,6 +362,16 @@ model Coupon {
   orders SaleOrder[]
 
   @@map("coupons")
+}
+
+model SystemSettings {
+  id                    String  @id @default(uuid())
+  key                   String  @unique
+  value                 String
+  description           String?
+  updatedAt             DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 // ============================================

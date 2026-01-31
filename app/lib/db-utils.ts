@@ -48,7 +48,7 @@ export async function checkAvailability(
 
   // Calculate total reserved quantity
   const totalReserved = overlappingReservations.reduce(
-    (sum, reservation) => sum + reservation.quantity,
+    (sum:any, reservation:any) => sum + reservation.quantity,
     0
   );
 

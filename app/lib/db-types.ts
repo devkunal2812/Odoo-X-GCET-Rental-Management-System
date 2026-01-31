@@ -1,80 +1,60 @@
-import { Prisma } from '@prisma/client';
+import type { 
+  User, 
+  VendorProfile, 
+  CustomerProfile, 
+  Product, 
+  SaleOrder, 
+  Invoice,
+  ProductPricing,
+  Inventory,
+  ProductVariant,
+  SaleOrderLine,
+  Reservation,
+  InvoiceLine,
+  Payment
+} from '@prisma/client';
 
 // User with relations
-export type UserWithProfile = Prisma.UserGetPayload<{
-  include: {
-    vendorProfile: true;
-    customerProfile: true;
-  };
-}>;
+export type UserWithProfile = User & {
+  vendorProfile: VendorProfile | null;
+  customerProfile: CustomerProfile | null;
+};
 
-// Product with all relations
-export type ProductWithDetails = Prisma.ProductGetPayload<{
-  include: {
-    vendor: true;
-    pricing: true;
-    inventory: true;
-    variants: {
-      include: {
-        variantAttributeValues: {
-          include: {
-            attributeValue: {
-              include: {
-                attribute: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
+// Product with all relations  
+export type ProductWithDetails = Product & {
+  vendor: VendorProfile;
+  pricing: ProductPricing[];
+  inventory: Inventory | null;
+  variants: ProductVariant[];
+};
 
 // Sale Order with full details
-export type SaleOrderWithDetails = Prisma.SaleOrderGetPayload<{
-  include: {
-    customer: {
-      include: {
-        user: true;
-      };
-    };
-    vendor: {
-      include: {
-        user: true;
-      };
-    };
-    lines: {
-      include: {
-        product: true;
-        variant: true;
-      };
-    };
-    invoices: true;
-    reservations: true;
+export type SaleOrderWithDetails = SaleOrder & {
+  customer: CustomerProfile & {
+    user: User;
   };
-}>;
+  vendor: VendorProfile;
+  lines: (SaleOrderLine & {
+    product: Product;
+    variant: ProductVariant | null;
+  })[];
+  invoices: Invoice[];
+  reservations: Reservation[];
+};
 
 // Invoice with details
-export type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
-  include: {
-    saleOrder: {
-      include: {
-        customer: {
-          include: {
-            user: true;
-          };
-        };
-        vendor: true;
-      };
+export type InvoiceWithDetails = Invoice & {
+  saleOrder: SaleOrder & {
+    customer: CustomerProfile & {
+      user: User;
     };
-    lines: {
-      include: {
-        product: true;
-      };
-    };
-    payments: true;
+    vendor: VendorProfile;
   };
-}>;
+  lines: (InvoiceLine & {
+    product: Product;
+  })[];
+  payments: Payment[];
+};
 
 // Common select options for API responses
 export const userSelect = {
@@ -85,7 +65,7 @@ export const userSelect = {
   role: true,
   isActive: true,
   createdAt: true,
-} satisfies Prisma.UserSelect;
+};
 
 export const productSelect = {
   id: true,
@@ -102,7 +82,7 @@ export const productSelect = {
   },
   pricing: true,
   inventory: true,
-} satisfies Prisma.ProductSelect;
+};
 
 export const orderSelect = {
   id: true,
@@ -138,4 +118,4 @@ export const orderSelect = {
       },
     },
   },
-} satisfies Prisma.SaleOrderSelect;
+};
