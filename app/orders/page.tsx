@@ -32,8 +32,12 @@ const formatDate = (dateString: string) => {
 // Load orders from database API only (no localStorage fallback)
 const loadOrdersFromDatabase = async () => {
   try {
+    console.log('🔗 Calling /api/orders/user...');
     const response = await fetch('/api/orders/user');
+    console.log('📡 API Response status:', response.status);
+    
     const result = await response.json();
+    console.log('📦 API Response data:', result);
     
     if (result.success) {
       console.log(`✅ Loaded ${result.orders.length} orders from ${result.source}`);

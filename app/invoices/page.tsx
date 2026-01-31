@@ -30,8 +30,12 @@ const formatDate = (dateString: string) => {
 // Load invoices from database API only (no localStorage fallback)
 const loadInvoicesFromDatabase = async () => {
   try {
+    console.log('🔗 Calling /api/invoices/user...');
     const response = await fetch('/api/invoices/user');
+    console.log('📡 API Response status:', response.status);
+    
     const result = await response.json();
+    console.log('📄 API Response data:', result);
     
     if (result.success && result.invoices.length > 0) {
       console.log(`✅ Loaded ${result.invoices.length} invoices from ${result.source}`);
@@ -78,6 +82,8 @@ export default function InvoicesPage() {
         const dbInvoices = await loadInvoicesFromDatabase();
         
         console.log(`📊 Found ${dbInvoices.length} invoices from database`);
+        console.log('📄 Invoice data:', dbInvoices);
+        
         setInvoices(dbInvoices);
         setLoading(false);
         
