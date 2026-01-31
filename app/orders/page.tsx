@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
 import {
@@ -29,139 +29,38 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// Mock data
-const mockOrders = [
-  {
-    id: "ORD-001",
-    product: {
-      name: "Professional Camera Kit",
-      image: "/api/placeholder/100/100",
-      description: "Complete DSLR camera kit with lenses and accessories"
-    },
-    vendor: {
-      name: "TechRent Pro",
-      phone: "+1 (555) 123-4567",
-      email: "support@techrentpro.com"
-    },
-    amount: 150,
-    status: "confirmed",
-    orderDate: "2024-01-30",
-    startDate: "2024-02-01",
-    endDate: "2024-02-04",
-    duration: 3,
-    unit: "days",
-    pickupLocation: "Downtown Store - 123 Main St",
-    pickupTime: "10:00 AM",
-    returnLocation: "Downtown Store - 123 Main St",
-    returnTime: "5:00 PM",
-    paymentStatus: "paid",
-    notes: "Customer requested early pickup at 8 AM if possible"
-  },
-  {
-    id: "ORD-002",
-    product: {
-      name: "Power Drill Set",
-      image: "/api/placeholder/100/100",
-      description: "Professional cordless drill with bits and case"
-    },
-    vendor: {
-      name: "ToolMaster",
-      phone: "+1 (555) 234-5678",
-      email: "rentals@toolmaster.com"
-    },
-    amount: 45,
-    status: "in-progress",
-    orderDate: "2024-01-29",
-    startDate: "2024-01-30",
-    endDate: "2024-01-31",
-    duration: 1,
-    unit: "day",
-    pickupLocation: "North Branch - 456 Oak Ave",
-    pickupTime: "9:00 AM",
-    returnLocation: "North Branch - 456 Oak Ave",
-    returnTime: "6:00 PM",
-    paymentStatus: "paid",
-    notes: ""
-  },
-  {
-    id: "ORD-003",
-    product: {
-      name: "Party Sound System",
-      image: "/api/placeholder/100/100",
-      description: "Professional sound system for events"
-    },
-    vendor: {
-      name: "EventPro",
-      phone: "+1 (555) 345-6789",
-      email: "info@eventpro.com"
-    },
-    amount: 200,
-    status: "completed",
-    orderDate: "2024-01-28",
-    startDate: "2024-01-29",
-    endDate: "2024-01-31",
-    duration: 2,
-    unit: "days",
-    pickupLocation: "Main Store - 789 Pine St",
-    pickupTime: "2:00 PM",
-    returnLocation: "Main Store - 789 Pine St",
-    returnTime: "4:00 PM",
-    paymentStatus: "paid",
-    notes: "Equipment returned in excellent condition"
-  },
-  {
-    id: "ORD-004",
-    product: {
-      name: "Mountain Bike",
-      image: "/api/placeholder/100/100",
-      description: "High-performance mountain bike for trails"
-    },
-    vendor: {
-      name: "BikeRentals",
-      phone: "+1 (555) 456-7890",
-      email: "info@bikerentals.com"
-    },
-    amount: 90,
-    status: "pending",
-    orderDate: "2024-01-27",
-    startDate: "2024-02-05",
-    endDate: "2024-02-08",
-    duration: 3,
-    unit: "days",
-    pickupLocation: "South Location - 789 Pine St",
-    pickupTime: "11:00 AM",
-    returnLocation: "South Location - 789 Pine St",
-    returnTime: "4:00 PM",
-    paymentStatus: "pending",
-    notes: "Customer will provide own helmet and safety gear"
-  },
-  {
-    id: "ORD-005",
-    product: {
-      name: "Electric Scooter",
-      image: "/api/placeholder/100/100",
-      description: "Electric scooter for city commuting"
-    },
-    vendor: {
-      name: "UrbanRide",
-      phone: "+1 (555) 567-8901",
-      email: "support@urbanride.com"
-    },
-    amount: 75,
-    status: "confirmed",
-    orderDate: "2024-01-25",
-    startDate: "2024-02-10",
-    endDate: "2024-02-12",
-    duration: 2,
-    unit: "days",
-    pickupLocation: "City Center - 321 Elm St",
-    pickupTime: "12:00 PM",
-    returnLocation: "City Center - 321 Elm St",
-    returnTime: "3:00 PM",
-    paymentStatus: "paid",
-    notes: "Helmet and safety gear included"
+// Load orders from localStorage
+const loadOrdersFromStorage = () => {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const orders = localStorage.getItem('userOrders');
+    return orders ? JSON.parse(orders) : [];
+  } catch (error) {
+    console.error('Error loading orders from localStorage:', error);
+    return [];
   }
-];
+};
+
+// Load orders from database API
+const loadOrdersFromDatabase = async () => {
+  try {
+    const response = await fetch('/api/orders/user');
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`Loaded ${result.orders.length} orders from ${result.source}`);
+      return result.orders;
+    } else {
+      console.log('Database API failed, falling back to localStorage');
+      return loadOrdersFromStorage();
+    }
+  } catch (error) {
+    console.error('Error loading orders from database:', error);
+    console.log('Falling back to localStorage');
+    return loadOrdersFromStorage();
+  }
+};
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
@@ -195,6 +94,45 @@ const getPaymentStatusColor = (status: string) => {
 
 export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load orders when component mounts
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        // Try to load from database first
+        const dbOrders = await loadOrdersFromDatabase();
+        
+        // If database has orders, use them
+        if (dbOrders.length > 0) {
+          setOrders(dbOrders);
+          setLoading(false);
+          return;
+        }
+        
+        // Otherwise, fall back to localStorage
+        const localOrders = loadOrdersFromStorage();
+        setOrders(localOrders);
+        setLoading(false);
+        
+      } catch (error) {
+        console.error('Error loading orders:', error);
+        // Final fallback to localStorage
+        const localOrders = loadOrdersFromStorage();
+        setOrders(localOrders);
+        setLoading(false);
+      }
+    };
+
+    loadOrders();
+
+    // Listen for order updates to refresh orders
+    const handleOrderUpdate = () => loadOrders();
+    window.addEventListener('orderUpdated', handleOrderUpdate);
+    
+    return () => window.removeEventListener('orderUpdated', handleOrderUpdate);
+  }, []);
 
   const handleCancelOrder = (orderId: string) => {
     if (confirm("Are you sure you want to cancel this order?")) {
@@ -215,8 +153,8 @@ export default function OrdersPage() {
       // Generate sample invoice data (in real app, this would come from API)
       const invoiceData = generateSampleInvoiceData(`INV-${orderId.split('-')[1]}`);
       
-      // Find the actual order from mockOrders to get real data
-      const actualOrder = mockOrders.find(order => order.id === orderId);
+      // Find the actual order from orders to get real data
+      const actualOrder = orders.find(order => order.id === orderId);
       if (actualOrder) {
         // Update the sample data with actual order data
         invoiceData.id = `INV-${orderId}`;
@@ -228,11 +166,13 @@ export default function OrdersPage() {
         invoiceData.status = actualOrder.paymentStatus === 'paid' ? 'paid' : 'pending';
         invoiceData.rentalPeriod = `${formatDate(actualOrder.startDate)} to ${formatDate(actualOrder.endDate)} (${actualOrder.duration} ${actualOrder.unit})`;
         
-        // Update customer info with mock data
-        invoiceData.customerInfo.name = 'John Doe'; // In real app, get from user context
-        invoiceData.customerInfo.email = 'customer@email.com';
-        invoiceData.customerInfo.phone = '+91 98765 43210';
-        invoiceData.customerInfo.address = '123, Customer Address, City, State - 560001';
+        // Update customer info with delivery address if available
+        if (actualOrder.deliveryAddress) {
+          invoiceData.customerInfo.name = actualOrder.deliveryAddress.name;
+          invoiceData.customerInfo.email = actualOrder.deliveryAddress.email;
+          invoiceData.customerInfo.phone = actualOrder.deliveryAddress.phone;
+          invoiceData.customerInfo.address = `${actualOrder.deliveryAddress.street}, ${actualOrder.deliveryAddress.city}, ${actualOrder.deliveryAddress.state} - ${actualOrder.deliveryAddress.zip}`;
+        }
       }
       
       // Generate and download PDF
@@ -265,9 +205,26 @@ export default function OrdersPage() {
     }
   };
 
-  const activeOrders = mockOrders.filter(order => 
+  const activeOrders = orders.filter(order => 
     order.status !== "completed" && order.status !== "cancelled"
   );
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-secondary-50">
+        <Header currentPage="orders" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <h3 className="text-xl font-semibold mb-2 text-secondary-900">Loading Orders...</h3>
+            <p className="text-secondary-600">Please wait while we fetch your orders.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-secondary-50">
@@ -302,7 +259,7 @@ export default function OrdersPage() {
               <div>
                 <p className="text-sm font-medium text-secondary-600">Total Orders</p>
                 <p className="text-2xl font-bold text-secondary-900">
-                  {mockOrders.length}
+                  {orders.length}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -328,7 +285,7 @@ export default function OrdersPage() {
               <div>
                 <p className="text-sm font-medium text-secondary-600">Completed</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {mockOrders.filter(order => order.status === "completed").length}
+                  {orders.filter(order => order.status === "completed").length}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -342,7 +299,7 @@ export default function OrdersPage() {
               <div>
                 <p className="text-sm font-medium text-secondary-600">Total Spent</p>
                 <p className="text-2xl font-bold text-secondary-900">
-                  ₹{mockOrders.reduce((sum, order) => sum + order.amount, 0)}
+                  ₹{orders.reduce((sum, order) => sum + order.amount, 0)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center">
@@ -354,7 +311,7 @@ export default function OrdersPage() {
 
         {/* Orders List */}
         <div className="space-y-6">
-          {mockOrders.map((order) => {
+          {orders.map((order) => {
             const statusColor = getStatusColor(order.status);
             const paymentColor = getPaymentStatusColor(order.paymentStatus);
             const StatusIcon = statusColor.icon;
@@ -554,6 +511,31 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
+                    {/* Payment Verification Status */}
+                    {order.paymentVerified && (
+                      <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
+                        <h4 className="font-semibold mb-2 text-green-800 flex items-center">
+                          <CheckCircleIcon className="h-5 w-5 mr-2" />
+                          Payment Verified (Test Mode)
+                        </h4>
+                        <div className="text-sm text-green-700 space-y-1">
+                          <p><strong>Payment ID:</strong> {order.paymentId}</p>
+                          {order.razorpayOrderId && (
+                            <p><strong>Razorpay Order ID:</strong> {order.razorpayOrderId}</p>
+                          )}
+                          {order.paymentMethod && (
+                            <p><strong>Payment Method:</strong> {order.paymentMethod}</p>
+                          )}
+                          {order.paymentTimestamp && (
+                            <p><strong>Payment Time:</strong> {new Date(order.paymentTimestamp).toLocaleString()}</p>
+                          )}
+                          <p className="text-xs text-green-600 mt-2">
+                            ✅ This order was created after successful Razorpay test payment verification
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Notes */}
                     {order.notes && (
                       <div className="mt-4 p-4 rounded-lg bg-white">
@@ -573,7 +555,7 @@ export default function OrdersPage() {
         </div>
 
         {/* Empty State */}
-        {mockOrders.length === 0 && (
+        {orders.length === 0 && (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center bg-secondary-200">
               <ShoppingBagIcon className="h-12 w-12 text-secondary-600" />

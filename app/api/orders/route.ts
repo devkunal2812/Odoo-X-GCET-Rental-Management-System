@@ -43,7 +43,7 @@ export const POST = requireRole("CUSTOMER")(async (request: NextRequest, { user 
           inventory: true,
         },
       });
-
+      
       if (!product) {
         return NextResponse.json(
           { error: `Product ${line.productId} not found` },
