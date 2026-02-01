@@ -16,7 +16,8 @@ import {
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  BellIcon
 } from '@heroicons/react/24/outline';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: CubeIcon },
   { name: 'Rental Orders', href: '/admin/orders', icon: ClipboardDocumentListIcon },
   { name: 'Invoices', href: '/admin/invoices', icon: DocumentTextIcon },
+  { name: 'Notifications', href: '/admin/notifications', icon: BellIcon },
   { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
   { name: 'Settings', href: '/admin/settings', icon: CogIcon },
 ];

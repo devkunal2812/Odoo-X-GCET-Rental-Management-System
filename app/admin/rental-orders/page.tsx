@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { api } from '@/app/lib/api-client';
 import {
   DocumentTextIcon,
   MagnifyingGlassIcon,
@@ -13,7 +14,8 @@ import {
   ExclamationTriangleIcon,
   UserIcon,
   CubeIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { generateInvoicePDF, generateSampleInvoiceData, InvoiceData } from '../../../lib/invoiceGenerator';
 
@@ -21,161 +23,41 @@ interface RentalOrder {
   id: string;
   orderNumber: string;
   customer: {
+    id: string;
     name: string;
     email: string;
     phone: string;
     company: string;
   };
-  asset: {
+  vendor: {
+    id: string;
     name: string;
-    serialNumber: string;
-    category: string;
+    email: string;
   };
-  partner: string;
-  status: 'Pending' | 'Confirmed' | 'Active' | 'Pending Return' | 'Returned' | 'Overdue' | 'Cancelled';
-  startDate: string;
-  endDate: string;
-  actualReturnDate?: string;
-  dailyRate: number;
-  totalDays: number;
+  products: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    variant: string | null;
+  }>;
+  status: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  pickupDate: Date | null;
+  actualReturnDate: Date | null;
+  orderDate: Date;
   totalAmount: number;
-  securityDeposit: number;
-  paymentStatus: 'Pending' | 'Partial' | 'Paid' | 'Refunded';
-  createdDate: string;
-  notes?: string;
+  discount: number;
+  lateFee: number;
+  coupon: {
+    code: string;
+    discountType: string;
+    value: number;
+  } | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
-
-const mockRentalOrders: RentalOrder[] = [
-  {
-    id: '1',
-    orderNumber: 'RNT-2024-001',
-    customer: {
-      name: 'John Doe',
-      email: 'john.doe@email.com',
-      phone: '+1 (555) 123-4567',
-      company: 'Tech Solutions Inc.'
-    },
-    asset: {
-      name: 'Professional DSLR Camera Kit',
-      serialNumber: 'CAM-2024-001',
-      category: 'Photography Equipment'
-    },
-    partner: 'TechRent Pro',
-    status: 'Active',
-    startDate: '2024-01-28',
-    endDate: '2024-02-05',
-    dailyRate: 45,
-    totalDays: 8,
-    totalAmount: 360,
-    securityDeposit: 500,
-    paymentStatus: 'Paid',
-    createdDate: '2024-01-25',
-    notes: 'Customer requested early pickup at 8 AM'
-  },
-  {
-    id: '2',
-    orderNumber: 'RNT-2024-002',
-    customer: {
-      name: 'Sarah Smith',
-      email: 'sarah.smith@email.com',
-      phone: '+1 (555) 234-5678',
-      company: 'Creative Agency'
-    },
-    asset: {
-      name: 'Power Drill Set Professional',
-      serialNumber: 'TOOL-2024-002',
-      category: 'Construction Tools'
-    },
-    partner: 'ToolMaster',
-    status: 'Pending Return',
-    startDate: '2024-01-25',
-    endDate: '2024-01-31',
-    dailyRate: 25,
-    totalDays: 6,
-    totalAmount: 150,
-    securityDeposit: 200,
-    paymentStatus: 'Paid',
-    createdDate: '2024-01-22'
-  },
-  {
-    id: '3',
-    orderNumber: 'RNT-2024-003',
-    customer: {
-      name: 'Mike Johnson',
-      email: 'mike.johnson@email.com',
-      phone: '+1 (555) 345-6789',
-      company: 'Event Planners Co.'
-    },
-    asset: {
-      name: 'Professional Sound System',
-      serialNumber: 'AUD-2024-003',
-      category: 'Audio Equipment'
-    },
-    partner: 'EventPro',
-    status: 'Overdue',
-    startDate: '2024-01-20',
-    endDate: '2024-01-30',
-    dailyRate: 75,
-    totalDays: 10,
-    totalAmount: 750,
-    securityDeposit: 1000,
-    paymentStatus: 'Paid',
-    createdDate: '2024-01-18',
-    notes: 'Large event rental - requires special handling'
-  },
-  {
-    id: '4',
-    orderNumber: 'RNT-2024-004',
-    customer: {
-      name: 'Lisa Chen',
-      email: 'lisa.chen@email.com',
-      phone: '+1 (555) 456-7890',
-      company: 'Startup Hub'
-    },
-    asset: {
-      name: 'Mountain Bike - Trek',
-      serialNumber: 'BIKE-2024-004',
-      category: 'Sports Equipment'
-    },
-    partner: 'BikeRentals',
-    status: 'Returned',
-    startDate: '2024-01-22',
-    endDate: '2024-01-29',
-    actualReturnDate: '2024-01-29',
-    dailyRate: 35,
-    totalDays: 7,
-    totalAmount: 245,
-    securityDeposit: 300,
-    paymentStatus: 'Refunded',
-    createdDate: '2024-01-20'
-  },
-  {
-    id: '5',
-    orderNumber: 'RNT-2024-005',
-    customer: {
-      name: 'David Wilson',
-      email: 'david.wilson@email.com',
-      phone: '+1 (555) 567-8901',
-      company: 'Wilson Enterprises'
-    },
-    asset: {
-      name: 'Electric Scooter',
-      serialNumber: 'SCOOT-2024-005',
-      category: 'Transportation'
-    },
-    partner: 'UrbanRide',
-    status: 'Cancelled',
-    startDate: '2024-01-26',
-    endDate: '2024-02-02',
-    dailyRate: 20,
-    totalDays: 7,
-    totalAmount: 140,
-    securityDeposit: 150,
-    paymentStatus: 'Refunded',
-    createdDate: '2024-01-24',
-    notes: 'Cancelled due to weather conditions'
-  }
-];
 
 const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
   order: RentalOrder | null;
@@ -185,18 +67,21 @@ const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
 }) => {
   if (!isOpen || !order) return null;
 
-  const getDaysRemaining = () => {
-    const today = new Date();
-    const endDate = new Date(order.endDate);
-    const diffTime = endDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
-  const daysRemaining = getDaysRemaining();
+  const totalDays = order.startDate && order.endDate
+    ? Math.ceil((new Date(order.endDate).getTime() - new Date(order.startDate).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -223,52 +108,26 @@ const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
                   <label className="block text-sm font-medium text-[#715A5A] mb-1">Order Number</label>
                   <p className="text-[#37353E] font-semibold">{order.orderNumber}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Status</label>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      order.status === 'Active' 
-                        ? 'bg-green-100 text-green-800'
-                        : order.status === 'Pending Return'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : order.status === 'Overdue'
+                <div>
+                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Status</label>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    order.status === 'PICKED_UP' 
+                      ? 'bg-green-100 text-green-800'
+                      : order.status === 'CONFIRMED'
+                        ? 'bg-blue-100 text-blue-800'
+                        : order.status === 'RETURNED'
+                          ? 'bg-purple-100 text-purple-800'
+                          : order.status === 'CANCELLED'
                             ? 'bg-red-100 text-red-800'
-                            : order.status === 'Returned'
-                              ? 'bg-blue-100 text-blue-800'
-                              : order.status === 'Confirmed'
-                                ? 'bg-green-100 text-green-800'
-                                : order.status === 'Pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {order.status}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Payment Status</label>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      order.paymentStatus === 'Paid' 
-                        ? 'bg-green-100 text-green-800'
-                        : order.paymentStatus === 'Partial'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : order.paymentStatus === 'Refunded'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-red-100 text-red-800'
-                    }`}>
-                      {order.paymentStatus}
-                    </span>
-                  </div>
+                            : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {order.status}
+                  </span>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#715A5A] mb-1">Created Date</label>
-                  <p className="text-[#37353E]">{order.createdDate}</p>
+                  <p className="text-[#37353E]">{formatDate(order.createdAt)}</p>
                 </div>
-                {order.notes && (
-                  <div>
-                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Notes</label>
-                    <p className="text-[#37353E] bg-[#D3DAD9]/20 p-3 rounded-lg">{order.notes}</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -279,10 +138,6 @@ const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
                 <div>
                   <label className="block text-sm font-medium text-[#715A5A] mb-1">Name</label>
                   <p className="text-[#37353E] font-semibold">{order.customer.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Company</label>
-                  <p className="text-[#37353E]">{order.customer.company}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#715A5A] mb-1">Email</label>
@@ -296,29 +151,27 @@ const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
             </div>
           </div>
 
-          {/* Asset & Rental Details */}
+          {/* Products & Rental Details */}
           <div className="space-y-6">
             <div>
-              <h4 className="text-lg font-semibold text-[#37353E] mb-4">Asset Information</h4>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Asset Name</label>
-                  <p className="text-[#37353E] font-semibold">{order.asset.name}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Serial Number</label>
-                    <p className="text-[#37353E] font-mono">{order.asset.serialNumber}</p>
+              <h4 className="text-lg font-semibold text-[#37353E] mb-4">Products</h4>
+              <div className="space-y-2">
+                {order.products.map((product, index) => (
+                  <div key={index} className="bg-[#D3DAD9]/20 rounded-lg p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-[#37353E]">{product.name}</p>
+                        {product.variant && (
+                          <p className="text-xs text-[#715A5A]">Variant: {product.variant}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-[#37353E]">₹{product.unitPrice}</p>
+                        <p className="text-xs text-[#715A5A]">Qty: {product.quantity}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Category</label>
-                    <p className="text-[#37353E]">{order.asset.category}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Partner</label>
-                  <p className="text-[#37353E]">{order.partner}</p>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -328,68 +181,73 @@ const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-[#715A5A] mb-1">Start Date</label>
-                    <p className="text-[#37353E]">{order.startDate}</p>
+                    <p className="text-[#37353E]">{formatDate(order.startDate)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#715A5A] mb-1">End Date</label>
-                    <p className="text-[#37353E]">{order.endDate}</p>
+                    <p className="text-[#37353E]">{formatDate(order.endDate)}</p>
                   </div>
                 </div>
+                {order.pickupDate && (
+                  <div>
+                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Pickup Date</label>
+                    <p className="text-[#37353E]">{formatDate(order.pickupDate)}</p>
+                  </div>
+                )}
                 {order.actualReturnDate && (
                   <div>
                     <label className="block text-sm font-medium text-[#715A5A] mb-1">Actual Return Date</label>
-                    <p className="text-[#37353E]">{order.actualReturnDate}</p>
+                    <p className="text-[#37353E]">{formatDate(order.actualReturnDate)}</p>
                   </div>
                 )}
                 <div>
                   <label className="block text-sm font-medium text-[#715A5A] mb-1">Duration</label>
-                  <p className="text-[#37353E]">{order.totalDays} days</p>
+                  <p className="text-[#37353E]">{totalDays} days</p>
                 </div>
-                {order.status === 'Active' && (
-                  <div>
-                    <label className="block text-sm font-medium text-[#715A5A] mb-1">Time Remaining</label>
-                    <p className={`font-semibold ${
-                      daysRemaining > 0 ? 'text-green-600' : daysRemaining === 0 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      {daysRemaining > 0 ? `${daysRemaining} days left` : 
-                       daysRemaining === 0 ? 'Due today' : 
-                       `${Math.abs(daysRemaining)} days overdue`}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
             <div>
               <h4 className="text-lg font-semibold text-[#37353E] mb-4">Financial Details</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#D3DAD9]/20 rounded-lg p-3">
-                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Daily Rate</label>
-                  <p className="text-lg font-bold text-[#37353E]">₹{order.dailyRate}</p>
+              <div className="space-y-2">
+                <div className="flex justify-between bg-[#D3DAD9]/20 rounded-lg p-3">
+                  <span className="text-sm text-[#715A5A]">Subtotal</span>
+                  <span className="text-sm font-semibold text-[#37353E]">₹{order.totalAmount.toFixed(2)}</span>
                 </div>
-                <div className="bg-[#D3DAD9]/20 rounded-lg p-3">
-                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Total Amount</label>
-                  <p className="text-lg font-bold text-[#37353E]">₹{order.totalAmount}</p>
+                {order.discount > 0 && (
+                  <div className="flex justify-between bg-green-50 rounded-lg p-3">
+                    <span className="text-sm text-green-700">Discount</span>
+                    <span className="text-sm font-semibold text-green-700">-₹{order.discount.toFixed(2)}</span>
+                  </div>
+                )}
+                {order.lateFee > 0 && (
+                  <div className="flex justify-between bg-red-50 rounded-lg p-3">
+                    <span className="text-sm text-red-700">Late Fee</span>
+                    <span className="text-sm font-semibold text-red-700">+₹{order.lateFee.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between bg-[#37353E] text-white rounded-lg p-3">
+                  <span className="text-sm font-medium">Total</span>
+                  <span className="text-lg font-bold">₹{(order.totalAmount - order.discount + order.lateFee).toFixed(2)}</span>
                 </div>
-                <div className="bg-[#D3DAD9]/20 rounded-lg p-3 col-span-2">
-                  <label className="block text-sm font-medium text-[#715A5A] mb-1">Security Deposit</label>
-                  <p className="text-lg font-bold text-[#37353E]">₹{order.securityDeposit}</p>
-                </div>
+              </div>
+            </div>
+
+            {/* Vendor Info */}
+            <div>
+              <h4 className="text-lg font-semibold text-[#37353E] mb-4">Vendor</h4>
+              <div className="bg-[#D3DAD9]/20 rounded-lg p-3">
+                <p className="text-sm font-medium text-[#37353E]">{order.vendor.name}</p>
+                <p className="text-xs text-[#715A5A]">{order.vendor.email}</p>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="flex space-x-3 pt-4">
-              <button className="flex-1 px-4 py-2 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors">
-                Update Status
-              </button>
-              <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Contact Customer
-              </button>
-              {(order.status === 'Returned' || order.status === 'Active' || order.paymentStatus === 'Paid') && (
+              {(order.status === 'RETURNED' || order.status === 'PICKED_UP' || order.status === 'INVOICED') && (
                 <button 
                   onClick={() => order && onDownload(order)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   Download Invoice
                 </button>
@@ -403,16 +261,60 @@ const RentalOrderDetailModal = ({ order, isOpen, onClose, onDownload }: {
 };
 
 export default function RentalOrdersPage() {
-  const [orders] = useState<RentalOrder[]>(mockRentalOrders);
+  const [orders, setOrders] = useState<RentalOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState<RentalOrder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const fetchOrders = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const params: Record<string, string> = {};
+      if (statusFilter && statusFilter !== 'All') {
+        params.status = statusFilter;
+      }
+
+      console.log('Fetching orders with params:', params);
+
+      const response = await api.get<{
+        success: boolean;
+        orders: RentalOrder[];
+        error?: string;
+      }>('/admin/orders', params);
+
+      console.log('API Response:', response);
+
+      if (response.success) {
+        setOrders(response.orders || []);
+      } else {
+        console.error('Failed to fetch orders:', response.error);
+        alert(`Failed to fetch orders: ${response.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch orders:', error);
+      alert(`Error: ${error.message || 'Failed to fetch orders'}`);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.asset.name.toLowerCase().includes(searchTerm.toLowerCase());
+                         order.products.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -424,42 +326,45 @@ export default function RentalOrdersPage() {
 
   const handleDownloadInvoice = (order: RentalOrder) => {
     try {
+      const firstProduct = order.products[0];
       // Convert RentalOrder to InvoiceData format
       const invoiceData: InvoiceData = {
         id: `INV-${order.orderNumber}`,
         orderId: order.orderNumber,
-        product: order.asset.name,
-        vendor: order.partner,
+        product: firstProduct?.name || 'Multiple Products',
+        vendor: order.vendor.name,
         amount: order.totalAmount,
         tax: Math.round(order.totalAmount * 0.18), // 18% GST
         serviceFee: 25, // Fixed service fee
-        securityDeposit: order.securityDeposit,
+        securityDeposit: 0, // Not in current schema
         total: order.totalAmount + Math.round(order.totalAmount * 0.18) + 25,
-        status: order.paymentStatus === 'Paid' ? 'paid' : 'pending',
-        issueDate: order.createdDate,
-        dueDate: order.endDate,
-        paidDate: order.paymentStatus === 'Paid' ? order.createdDate : null,
-        paymentMethod: order.paymentStatus === 'Paid' ? 'UPI - Google Pay' : '',
-        rentalPeriod: `${order.startDate} to ${order.endDate} (${order.totalDays} days)`,
+        status: 'paid',
+        issueDate: new Date(order.createdAt).toISOString().split('T')[0],
+        dueDate: order.endDate ? new Date(order.endDate).toISOString().split('T')[0] : '',
+        paidDate: new Date(order.createdAt).toISOString().split('T')[0],
+        paymentMethod: 'UPI - Google Pay',
+        rentalPeriod: order.startDate && order.endDate 
+          ? `${new Date(order.startDate).toLocaleDateString('en-IN')} to ${new Date(order.endDate).toLocaleDateString('en-IN')}`
+          : 'N/A',
         customerInfo: {
           name: order.customer.name,
           email: order.customer.email,
           phone: order.customer.phone,
-          address: `${order.customer.company}, Business Address, City, State - 560001`,
+          address: `${order.customer.company || 'N/A'}, Business Address, City, State - 560001`,
         },
         vendorInfo: {
-          name: order.partner,
-          email: 'partner@vendor.com',
+          name: order.vendor.name,
+          email: order.vendor.email,
           phone: '+91 80 2345 6789',
           address: '456, Business District, City, State - 560100',
           gstin: '29ABCDE1234F1Z5',
         },
         companyInfo: {
-          name: 'RentERP Solutions',
+          name: 'RentMarket',
           address: '789, Business Park, Whitefield, Bangalore, Karnataka - 560066',
           phone: '+91 80 1234 5678',
-          email: 'support@rentalerp.com',
-          website: 'www.rentalerp.com',
+          email: 'support@rentmarket.com',
+          website: 'www.rentmarket.com',
           gstin: '29XYZAB1234C1D6'
         }
       };
@@ -496,21 +401,55 @@ export default function RentalOrdersPage() {
 
   const statusCounts = {
     All: orders.length,
-    Pending: orders.filter(o => o.status === 'Pending').length,
-    Confirmed: orders.filter(o => o.status === 'Confirmed').length,
-    Active: orders.filter(o => o.status === 'Active').length,
-    'Pending Return': orders.filter(o => o.status === 'Pending Return').length,
-    Returned: orders.filter(o => o.status === 'Returned').length,
-    Overdue: orders.filter(o => o.status === 'Overdue').length,
-    Cancelled: orders.filter(o => o.status === 'Cancelled').length,
+    QUOTATION: orders.filter(o => o.status === 'QUOTATION').length,
+    SENT: orders.filter(o => o.status === 'SENT').length,
+    CONFIRMED: orders.filter(o => o.status === 'CONFIRMED').length,
+    INVOICED: orders.filter(o => o.status === 'INVOICED').length,
+    PICKED_UP: orders.filter(o => o.status === 'PICKED_UP').length,
+    RETURNED: orders.filter(o => o.status === 'RETURNED').length,
+    CANCELLED: orders.filter(o => o.status === 'CANCELLED').length,
   };
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const calculateDays = (start: Date | null, end: Date | null) => {
+    if (!start || !end) return 0;
+    const diffTime = new Date(end).getTime() - new Date(start).getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#37353E] mb-4"></div>
+        <p className="text-[#715A5A]">Loading orders...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#37353E] mb-2">Rental Orders</h1>
-        <p className="text-[#715A5A]">Manage and track all rental orders</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[#37353E] mb-2">Rental Orders</h1>
+          <p className="text-[#715A5A]">Manage and track all rental orders</p>
+        </div>
+        <button
+          onClick={() => fetchOrders(true)}
+          disabled={refreshing}
+          className="flex items-center space-x-2 px-4 py-2 bg-[#37353E] text-white rounded-lg hover:bg-[#44444E] transition-colors disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+          <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -518,8 +457,8 @@ export default function RentalOrdersPage() {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-[#D3DAD9]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#715A5A]">Active Rentals</p>
-              <p className="text-2xl font-bold text-green-600">{statusCounts.Active}</p>
+              <p className="text-sm font-medium text-[#715A5A]">Picked Up</p>
+              <p className="text-2xl font-bold text-green-600">{statusCounts.PICKED_UP}</p>
             </div>
             <CheckCircleIcon className="h-8 w-8 text-green-500" />
           </div>
@@ -527,8 +466,8 @@ export default function RentalOrdersPage() {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-[#D3DAD9]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#715A5A]">Pending Returns</p>
-              <p className="text-2xl font-bold text-yellow-600">{statusCounts['Pending Return']}</p>
+              <p className="text-sm font-medium text-[#715A5A]">Confirmed</p>
+              <p className="text-2xl font-bold text-yellow-600">{statusCounts.CONFIRMED}</p>
             </div>
             <ClockIcon className="h-8 w-8 text-yellow-500" />
           </div>
@@ -536,10 +475,10 @@ export default function RentalOrdersPage() {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-[#D3DAD9]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#715A5A]">Overdue</p>
-              <p className="text-2xl font-bold text-red-600">{statusCounts.Overdue}</p>
+              <p className="text-sm font-medium text-[#715A5A]">Returned</p>
+              <p className="text-2xl font-bold text-blue-600">{statusCounts.RETURNED}</p>
             </div>
-            <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
+            <CheckCircleIcon className="h-8 w-8 text-blue-500" />
           </div>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm border border-[#D3DAD9]">
@@ -582,7 +521,18 @@ export default function RentalOrdersPage() {
 
       {/* Orders Table */}
       <div className="bg-white rounded-xl shadow-sm border border-[#D3DAD9] overflow-hidden">
-        <div className="overflow-x-auto">
+        {filteredOrders.length === 0 ? (
+          <div className="text-center py-12">
+            <DocumentTextIcon className="h-12 w-12 text-[#715A5A] mx-auto mb-4" />
+            <p className="text-[#715A5A] text-lg mb-2">No orders found</p>
+            <p className="text-[#715A5A] text-sm">
+              {orders.length === 0 
+                ? 'There are no rental orders in the system yet.' 
+                : 'No orders match your current filters.'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[#D3DAD9]">
               <tr>
@@ -610,80 +560,94 @@ export default function RentalOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D3DAD9]">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-[#D3DAD9]/20">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-[#37353E]">{order.orderNumber}</div>
-                      <div className="text-sm text-[#715A5A]">{order.createdDate}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-[#37353E]">{order.customer.name}</div>
-                      <div className="text-sm text-[#715A5A]">{order.customer.company}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-[#37353E]">{order.asset.name}</div>
-                      <div className="text-sm text-[#715A5A]">{order.asset.serialNumber}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[#37353E]">
-                      {order.startDate} to {order.endDate}
-                    </div>
-                    <div className="text-sm text-[#715A5A]">{order.totalDays} days</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-[#37353E]">₹{order.totalAmount}</div>
-                    <div className="text-sm text-[#715A5A]">₹{order.dailyRate}/day</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      order.status === 'Active' 
-                        ? 'bg-green-100 text-green-800'
-                        : order.status === 'Pending Return'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : order.status === 'Overdue'
-                            ? 'bg-red-100 text-red-800'
-                            : order.status === 'Returned'
-                              ? 'bg-blue-100 text-blue-800'
-                              : order.status === 'Confirmed'
-                                ? 'bg-green-100 text-green-800'
-                                : order.status === 'Pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleViewOrder(order)}
-                        className="text-[#44444E] hover:text-[#37353E]"
-                        title="View Details"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                      {(order.status === 'Returned' || order.status === 'Active' || order.paymentStatus === 'Paid') && (
-                        <button
-                          onClick={() => handleDownloadInvoice(order)}
-                          className="text-[#44444E] hover:text-[#37353E]"
-                          title="Download Invoice"
-                        >
-                          <ArrowDownTrayIcon className="h-4 w-4" />
-                        </button>
+              {filteredOrders.map((order) => {
+                const totalDays = calculateDays(order.startDate, order.endDate);
+                const firstProduct = order.products[0];
+                
+                return (
+                  <tr key={order.id} className="hover:bg-[#D3DAD9]/20">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-[#37353E]">{order.orderNumber}</div>
+                        <div className="text-sm text-[#715A5A]">{formatDate(order.createdAt)}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-[#37353E]">{order.customer.name}</div>
+                        <div className="text-sm text-[#715A5A]">{order.customer.email}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-[#37353E]">
+                          {firstProduct ? firstProduct.name : 'No products'}
+                        </div>
+                        {order.products.length > 1 && (
+                          <div className="text-sm text-[#715A5A]">
+                            +{order.products.length - 1} more
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-[#37353E]">
+                        {formatDate(order.startDate)} to {formatDate(order.endDate)}
+                      </div>
+                      <div className="text-sm text-[#715A5A]">{totalDays} days</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-[#37353E]">₹{order.totalAmount.toFixed(2)}</div>
+                      {order.discount > 0 && (
+                        <div className="text-sm text-green-600">-₹{order.discount.toFixed(2)}</div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.status === 'PICKED_UP' 
+                          ? 'bg-green-100 text-green-800'
+                          : order.status === 'CONFIRMED'
+                            ? 'bg-blue-100 text-blue-800'
+                            : order.status === 'RETURNED'
+                              ? 'bg-purple-100 text-purple-800'
+                              : order.status === 'INVOICED'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : order.status === 'SENT'
+                                  ? 'bg-cyan-100 text-cyan-800'
+                                  : order.status === 'CANCELLED'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewOrder(order)}
+                          className="text-[#44444E] hover:text-[#37353E]"
+                          title="View Details"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </button>
+                        {(order.status === 'RETURNED' || order.status === 'PICKED_UP' || order.status === 'INVOICED') && (
+                          <button
+                            onClick={() => handleDownloadInvoice(order)}
+                            className="text-[#44444E] hover:text-[#37353E]"
+                            title="Download Invoice"
+                          >
+                            <ArrowDownTrayIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Order Detail Modal */}
