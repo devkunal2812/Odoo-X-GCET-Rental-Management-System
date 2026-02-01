@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Connection Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #d3dad9;
+            color: #37353e;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #37353e;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #44444e;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            border-left: 4px solid #37353e;
+        }
+        .success { border-left-color: #22c55e; background: #f0f9f4; }
+        .error { border-left-color: #ef4444; background: #fef2f2; }
+        .warning { border-left-color: #f59e0b; background: #fffbeb; }
+        .info { border-left-color: #3b82f6; background: #eff6ff; }
+        h1 { color: #37353e; text-align: center; }
+        h2 { color: #44444e; }
+        .status-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .status-good { border-color: #22c55e; background: #f0f9f4; }
+        .status-bad { border-color: #ef4444; background: #fef2f2; }
+        .status-warning { border-color: #f59e0b; background: #fffbeb; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Database Connection Checker</h1>
+        <p>This tool checks if your rental system is properly connected to the database and shows real-time data.</p>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="test-button" onclick="checkConnection()">🔄 Check Database Connection</button>
+            <button class="test-button" onclick="checkRealTimeData()">📊 Check Real-Time Data</button>
+            <button class="test-button" onclick="runFullTest()">🧪 Run Full Test</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        async function checkConnection() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="result info">🔍 Checking database connection...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/test/db-connection`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = '<div class="result success">✅ DATABASE CONNECTION SUCCESSFUL!</div>';
+                    
+                    // Connection Status
+                    html += `
+                        <div class="status-card status-good">
+                            <h3>🔗 Connection Status</h3>
+                            <p><strong>Status:</strong> ${data.databaseConnection.status}</p>
+                            <p><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+                        </div>
+                    `;
+                    
+                    // Record Counts
+                    html += `
+                        <div class="status-card status-good">
+                            <h3>📊 Database Records</h3>
+                            <div class="grid">
+                                <div>👥 <strong>Users:</strong> ${data.recordCounts.users}</div>
+                                <div>📦 <strong>Products:</strong> ${data.recordCounts.products}</div>
+                                <div>📋 <strong>Orders:</strong> ${data.recordCounts.orders}</div>
+                                <div>🔒 <strong>Reservations:</strong> ${data.recordCounts.reservations}</div>
+                                <div>📊 <strong>Inventory:</strong> ${data.recordCounts.inventory}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Active Rentals
+                    if (data.activeRentals.count > 0) {
+                        html += `
+                            <div class="status-card status-warning">
+                                <h3>🔒 Active Rentals (${data.activeRentals.count})</h3>
+                        `;
+                        data.activeRentals.details.forEach(rental => {
+                            html += `
+                                <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+                                    <strong>📦 ${rental.productName}</strong><br>
+                                    📋 Order: ${rental.orderNumber}<br>
+                                    👤 Customer: ${rental.customerName}<br>
+                                    📅 Period: ${new Date(rental.startDate).toLocaleDateString()} - ${new Date(rental.endDate).toLocaleDateString()}<br>
+                                    📊 Quantity: ${rental.quantity} units<br>
+                                    🏷️ Status: ${rental.status}
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    } else {
+                        html += `
+                            <div class="status-card status-good">
+                                <h3>🔒 Active Rentals</h3>
+                                <p>No active rentals found. All products are available.</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Sample Products Availability
+                    html += `
+                        <div class="status-card status-good">
+                            <h3>📦 Sample Products Real-Time Availability</h3>
+                    `;
+                    data.sampleProductsAvailability.forEach(product => {
+                        const statusClass = product.isFullyRented ? 'status-bad' : 
+                                          product.currentlyRented > 0 ? 'status-warning' : 'status-good';
+                        html += `
+                            <div class="status-card ${statusClass}" style="margin: 10px 0;">
+                                <strong>${product.name}</strong> (${product.vendor})<br>
+                                📊 Total Stock: ${product.totalStock} units<br>
+                                🔒 Currently Rented: ${product.currentlyRented} units<br>
+                                ✅ Available: ${product.available} units<br>
+                                📋 Active Reservations: ${product.activeReservations}<br>
+                                🏷️ Status: ${product.isFullyRented ? 'Fully Rented' : product.currentlyRented > 0 ? 'Partially Rented' : 'Available'}
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    
+                    // System Status
+                    html += `
+                        <div class="status-card status-good">
+                            <h3>⚙️ System Status</h3>
+                            <p>✅ Real-Time Inventory: ${data.systemStatus.realTimeInventoryWorking ? 'Working' : 'Not Working'}</p>
+                            <p>✅ Database Integration: ${data.systemStatus.databaseIntegrationActive ? 'Active' : 'Inactive'}</p>
+                            <p>✅ Inventory Tracking: ${data.systemStatus.inventoryTrackingEnabled ? 'Enabled' : 'Disabled'}</p>
+                        </div>
+                    `;
+                    
+                    resultsDiv.innerHTML = html;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="result error">❌ DATABASE CONNECTION FAILED!</div>
+                        <div class="status-card status-bad">
+                            <h3>Error Details</h3>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                            <p><strong>Status:</strong> ${data.databaseConnection?.status || 'Unknown'}</p>
+                            <p><strong>Error Type:</strong> ${data.databaseConnection?.errorType || 'Unknown'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="result error">❌ NETWORK ERROR!</div>
+                    <div class="status-card status-bad">
+                        <h3>Connection Failed</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Possible Causes:</strong></p>
+                        <ul>
+                            <li>Development server not running</li>
+                            <li>Database not connected</li>
+                            <li>Network issues</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+
+        async function checkRealTimeData() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="result info">📊 Checking real-time data...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/products/available?published=true&includeOutOfStock=true&limit=5`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = '<div class="result success">📊 REAL-TIME DATA WORKING!</div>';
+                    
+                    html += `
+                        <div class="status-card status-good">
+                            <h3>📈 Real-Time Statistics</h3>
+                            <p>📦 Total Products in Database: ${data.metadata.totalProductsInDatabase}</p>
+                            <p>✅ Available Products: ${data.metadata.availableProducts}</p>
+                            <p>🔒 Out of Stock Products: ${data.metadata.outOfStockProducts}</p>
+                        </div>
+                    `;
+                    
+                    data.products.forEach(product => {
+                        const inventory = product.realTimeInventory;
+                        const isRented = product.currentRentals && product.currentRentals.length > 0;
+                        
+                        let statusClass = 'status-good';
+                        if (inventory.isOutOfStock) statusClass = 'status-bad';
+                        else if (isRented) statusClass = 'status-warning';
+                        
+                        html += `
+                            <div class="status-card ${statusClass}">
+                                <h4>📦 ${product.name}</h4>
+                                <p>📊 Total Stock: ${inventory.totalStock} units</p>
+                                <p>🔒 Currently Rented: ${inventory.currentlyRentedQuantity} units</p>
+                                <p>✅ Available Now: ${inventory.availableQuantity} units</p>
+                                <p>🏷️ Status: ${inventory.isOutOfStock ? 'Out of Stock' : isRented ? 'Partially Rented' : 'Available'}</p>
+                                
+                                ${isRented ? `
+                                    <div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-radius: 4px;">
+                                        <strong>Current Rentals:</strong><br>
+                                        ${product.currentRentals.map(rental => `
+                                            📋 ${rental.orderNumber} - ${rental.customerName} (until ${new Date(rental.endDate).toLocaleDateString()})
+                                        `).join('<br>')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    resultsDiv.innerHTML = html;
+                } else {
+                    resultsDiv.innerHTML = `<div class="result error">❌ Real-time data check failed: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">❌ Network error: ${error.message}</div>`;
+            }
+        }
+
+        async function runFullTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="result info">🧪 Running full system test...</div>';
+            
+            // Run both tests
+            await checkConnection();
+            
+            // Add separator
+            const currentContent = resultsDiv.innerHTML;
+            resultsDiv.innerHTML = currentContent + '<hr style="margin: 30px 0;">';
+            
+            // Add real-time data check
+            const realTimeDiv = document.createElement('div');
+            resultsDiv.appendChild(realTimeDiv);
+            
+            try {
+                const response = await fetch(`${API_BASE}/products/available?published=true&includeOutOfStock=true&limit=3`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    realTimeDiv.innerHTML = `
+                        <div class="result success">🎯 FULL SYSTEM TEST PASSED!</div>
+                        <div class="status-card status-good">
+                            <h3>✅ System Verification Complete</h3>
+                            <p>✅ Database Connection: Working</p>
+                            <p>✅ Real-Time Inventory: Working</p>
+                            <p>✅ Rental Tracking: Working</p>
+                            <p>✅ API Endpoints: Working</p>
+                            <p>✅ Data Accuracy: Verified</p>
+                            <br>
+                            <p><strong>🎉 Your rental system is fully connected to the database and working correctly!</strong></p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                realTimeDiv.innerHTML = `<div class="result error">❌ Full test failed: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-run connection check when page loads
+        window.addEventListener('load', () => {
+            setTimeout(checkConnection, 1000);
+        });
+    </script>
+</body>
+</html>

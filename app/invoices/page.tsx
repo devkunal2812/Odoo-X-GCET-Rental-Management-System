@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DocumentTextIcon,
   EyeIcon,
@@ -101,15 +102,24 @@ const loadInvoicesFromDatabase = async (): Promise<Invoice[]> => {
     
     // If that fails, we're likely a customer - fetch from user endpoint
     // But we need to get REAL data, not mock data
-    const response = await fetch('/api/invoices/user');
-    const result = await response.json();
+    const response = await fetch('/api/invoices/user', {
+      credentials: 'include', // ✅ Include cookies for authentication
+    });
     
-    if (!result.success || !result.invoices || result.invoices.length === 0) {
-      console.log('ℹ️ No invoices found');
+    if (response.status === 401) {
+      console.log('❌ Authentication required - redirecting to login');
+      window.location.href = '/login?message=Please login to view your invoices';
       return [];
     }
     
-    console.log(`✅ Loaded ${result.invoices.length} invoices`);
+    const result = await response.json();
+    
+    if (!result.success || !result.invoices || result.invoices.length === 0) {
+      console.log(`ℹ️ No invoices found for user: ${result.user || 'unknown'}`);
+      return [];
+    }
+    
+    console.log(`✅ Loaded ${result.invoices.length} invoices for user: ${result.user || 'unknown'}`);
     console.log('📄 Invoice data:', result.invoices[0]); // Log first invoice to see structure
     
     // The user endpoint returns data in a different format, transform it
@@ -193,6 +203,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function InvoicesPage() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
@@ -200,10 +211,21 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load invoices from database when component mounts
+  // Redirect to login if not authenticated
   useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      window.location.href = '/login?message=Please login to view your invoices';
+      return;
+    }
+  }, [authLoading, isAuthenticated]);
+
+  // Load invoices from database when component mounts and user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
+
     const loadInvoices = async () => {
       try {
+        console.log(`🔍 Loading invoices for user: ${user?.email}...`);
         setLoading(true);
         setError(null);
         
@@ -211,9 +233,9 @@ export default function InvoicesPage() {
         setInvoices(dbInvoices);
         
         if (dbInvoices.length > 0) {
-          console.log('✅ Loaded invoices successfully');
+          console.log(`✅ Loaded ${dbInvoices.length} invoices for user ${user?.email}`);
         } else {
-          console.log('ℹ️ No invoices found');
+          console.log(`ℹ️ No invoices found for user ${user?.email}`);
         }
       } catch (error: any) {
         console.error('❌ Error loading invoices:', error);
@@ -231,7 +253,7 @@ export default function InvoicesPage() {
     window.addEventListener('orderUpdated', handleOrderUpdate);
     
     return () => window.removeEventListener('orderUpdated', handleOrderUpdate);
-  }, []);
+  }, [isAuthenticated, authLoading, user]);
 
   const filteredInvoices = invoices.filter(invoice => {
     const productName = invoice.lines[0]?.product.name || '';
@@ -363,7 +385,7 @@ export default function InvoicesPage() {
     .reduce((sum, inv) => sum + inv.balanceDue, 0);
 
   // Show loading state
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-[#D3DAD9]">
         <Header currentPage="invoices" />
@@ -371,12 +393,21 @@ export default function InvoicesPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#37353E] mx-auto mb-4"></div>
-            <h3 className="text-xl font-semibold mb-2 text-[#37353E]">Loading Invoices...</h3>
-            <p className="text-[#715A5A]">Please wait while we fetch your invoices.</p>
+            <h3 className="text-xl font-semibold mb-2 text-[#37353E]">
+              {authLoading ? 'Checking Authentication...' : 'Loading Invoices...'}
+            </h3>
+            <p className="text-[#715A5A]">
+              {authLoading ? 'Please wait while we verify your login.' : `Please wait while we fetch your invoices${user ? ` for ${user.email}` : ''}.`}
+            </p>
           </div>
         </div>
       </div>
     );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -398,7 +429,7 @@ export default function InvoicesPage() {
                 My Invoices
               </h1>
               <p className="mt-2 text-[#715A5A]">
-                View and manage your rental invoices
+                View and manage your rental invoices{user ? ` for ${user.email}` : ''}
               </p>
             </div>
           </div>
@@ -665,7 +696,7 @@ export default function InvoicesPage() {
             </h3>
             <p className="mb-6 text-[#715A5A]">
               {invoices.length === 0 
-                ? "Complete a purchase to generate your first invoice" 
+                ? `Complete a purchase to generate your first invoice${user ? ` for ${user.email}` : ''}` 
                 : "Try adjusting your search or filters"
               }
             </p>

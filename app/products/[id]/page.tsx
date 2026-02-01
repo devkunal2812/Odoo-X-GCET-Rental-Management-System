@@ -9,6 +9,7 @@ import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { addToCart, isProductInCart } from "../../../lib/cart";
 import { productService } from "@/app/lib/services/products";
 import type { Product } from "@/types/api";
+import RentalDurationModal from "../../../components/RentalDurationModal";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -21,6 +22,9 @@ export default function ProductDetailPage() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  
+  // Rental Duration Modal state
+  const [showRentalModal, setShowRentalModal] = useState(false);
 
   // Fetch product data
   useEffect(() => {
@@ -107,6 +111,22 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (isInCart || !selectedRentalPeriod || quantityOnHand === 0) return;
     
+    // Open rental duration modal instead of directly adding to cart
+    setShowRentalModal(true);
+  };
+
+  const handleRentalConfirm = (rentalData: {
+    startDate: string;
+    endDate: string;
+    quantity: number;
+  }) => {
+    if (!selectedRentalPeriod) return;
+
+    // Calculate rental duration in days
+    const start = new Date(rentalData.startDate);
+    const end = new Date(rentalData.endDate);
+    const durationInDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    
     addToCart({
       productId: params.id as string,
       product: {
@@ -116,14 +136,18 @@ export default function ProductDetailPage() {
         vendor: vendorName,
         vendorId: product.vendorId
       },
-      quantity,
-      rentalDuration,
-      rentalUnit: selectedRentalPeriod.rentalPeriod?.name.toLowerCase() as 'hour' | 'day' | 'week',
+      quantity: rentalData.quantity,
+      rentalDuration: durationInDays,
+      rentalUnit: 'day' as const,
       unitPrice: selectedRentalPeriod.price,
-      selectedAttributes: {}
+      selectedAttributes: {},
+      // Add rental dates
+      rentalStartDate: rentalData.startDate,
+      rentalEndDate: rentalData.endDate
     });
     
     setJustAdded(true);
+    setShowRentalModal(false);
     setTimeout(() => setJustAdded(false), 2000);
   };
 
@@ -371,6 +395,21 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Rental Duration Modal */}
+      {product && (
+        <RentalDurationModal
+          isOpen={showRentalModal}
+          onClose={() => setShowRentalModal(false)}
+          onConfirm={handleRentalConfirm}
+          product={{
+            id: product.id,
+            name: product.name,
+            maxQuantity: quantityOnHand
+          }}
+          initialQuantity={quantity}
+        />
+      )}
 
       {/* Footer */}
       <footer className="bg-secondary-900 text-white py-12 mt-16">

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import { CheckIcon, CreditCardIcon } from "@heroicons/react/24/outline";
 import { useRazorpay } from "../../lib/useRazorpay";
-import { getCartItems, getCartTotal, clearCart, CartItem } from "../../lib/cart";
+import { getCartItems, getCartTotal, clearCart, CartItem, validateCartAvailability } from "../../lib/cart";
 
 const deliveryMethods = [
   {
@@ -220,7 +220,30 @@ export default function CheckoutPage() {
     setPaymentProcessing(true);
 
     try {
-      // Create order with Razorpay
+      // STEP 1: Validate cart availability before payment
+      console.log('🔍 Validating cart availability before payment...');
+      const availabilityCheck = await validateCartAvailability();
+      
+      if (!availabilityCheck.valid) {
+        setPaymentProcessing(false);
+        
+        // Show detailed error message
+        let errorMessage = availabilityCheck.message;
+        if (availabilityCheck.invalidItems && availabilityCheck.invalidItems.length > 0) {
+          errorMessage += '\n\nUnavailable items:';
+          availabilityCheck.invalidItems.forEach(item => {
+            errorMessage += `\n• ${item.error}`;
+          });
+        }
+        errorMessage += '\n\nPlease update your cart and try again.';
+        
+        alert(errorMessage);
+        return;
+      }
+
+      console.log('✅ Cart availability validated successfully');
+
+      // STEP 2: Create order with Razorpay
       const orderData = await createOrder(total, `receipt_${Date.now()}`);
       
       if (!orderData.success) {

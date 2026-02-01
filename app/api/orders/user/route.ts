@@ -1,20 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { getUserFromRequest } from "@/app/lib/auth";
 
 /**
  * GET /api/orders/user
  * 
- * Get User Orders API - Retrieves orders for the current user
- * This is a simplified version that works without authentication for demo purposes
+ * Get User Orders API - Retrieves orders for the current authenticated user only
  */
 export async function GET(request: NextRequest) {
   try {
-    // In production, you would get the user ID from authentication
-    // For now, we'll return orders from localStorage format or database
+    // Get the authenticated user
+    const currentUser = await getUserFromRequest(request);
     
-    // Try to get orders from database (when available)
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    console.log(`🔍 Fetching orders for user: ${currentUser.email} (ID: ${currentUser.id})`);
+    
+    // Try to get orders from database for the current user only
     try {
       const orders = await prisma.saleOrder.findMany({
+        where: {
+          customer: {
+            userId: currentUser.id // ✅ Filter by current user's ID
+          }
+        },
         include: {
           customer: {
             include: {
@@ -40,6 +54,8 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: "desc" },
       });
+
+      console.log(`✅ Found ${orders.length} orders for user ${currentUser.email}`);
 
       // Transform database orders to match frontend format
       const transformedOrders = orders.map(order => ({
@@ -96,7 +112,7 @@ export async function GET(request: NextRequest) {
           unitPrice: line.unitPrice,
           totalPrice: line.unitPrice * line.quantity
         })),
-        notes: `✅ Database order - Payment ${order.status === "CONFIRMED" ? "VERIFIED" : "PENDING"} - Order: ${order.orderNumber}`,
+        notes: `✅ Database order - Payment ${order.status === "CONFIRMED" ? "VERIFIED" : "PENDING"} - Order: ${order.orderNumber} - User: ${currentUser.email}`,
         createdAt: order.createdAt.toISOString(),
         dbOrderId: order.id // Include database ID for reference
       }));
@@ -105,17 +121,19 @@ export async function GET(request: NextRequest) {
         success: true, 
         orders: transformedOrders,
         source: "database",
-        count: transformedOrders.length
+        count: transformedOrders.length,
+        user: currentUser.email // Include user info for debugging
       });
 
     } catch (dbError) {
-      console.log('Database not available or no orders found, returning empty array');
+      console.log(`ℹ️ No orders found for user ${currentUser.email}:`, dbError);
       
       return NextResponse.json({ 
         success: true, 
         orders: [],
         source: "database_empty",
-        message: "No orders found in database. Orders are currently stored in localStorage."
+        message: `No orders found for user ${currentUser.email}. Orders will appear here after successful purchases.`,
+        user: currentUser.email
       });
     }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   PlusIcon,
@@ -45,10 +45,13 @@ export default function VendorProducts() {
       endDate: string;
     };
   }}>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchProducts();
-  }, [user]);
+    if (user && user.role === 'VENDOR') {
+      fetchProducts();
+    }
+  }, [user]); // Only depend on user, not user changes
 
   const fetchProducts = async () => {
     try {
@@ -64,20 +67,53 @@ export default function VendorProducts() {
         return;
       }
 
-      // Fetch ALL products for this vendor (including unpublished)
-      const response = await productService.getAll({
-        vendorId: vendorProfileId,
-        published: false, // Include unpublished products
-      });
-      setProducts(response.products);
+      console.log('🔍 Fetching vendor products with real-time inventory...');
 
-      // Check rental status for each product
-      await checkRentalStatus(response.products);
+      // Use the real-time inventory API for vendor products
+      const response = await fetch(`/api/products/available?vendorId=${vendorProfileId}&includeOutOfStock=true`);
+      const data = await response.json();
+      
+      console.log('📦 Vendor products API response:', data);
+      
+      if (data.success) {
+        setProducts(data.products);
+        console.log(`✅ Loaded ${data.products.length} products with real-time inventory`);
+        
+        // Log inventory data for debugging (only first 3 products to reduce noise)
+        data.products.slice(0, 3).forEach((product: any) => {
+          if (product.realTimeInventory) {
+            console.log(`📦 ${product.name}:`, {
+              total: product.realTimeInventory.totalStock,
+              available: product.realTimeInventory.availableQuantity,
+              reserved: product.realTimeInventory.reservedQuantity,
+              isFullyBooked: product.realTimeInventory.availableQuantity === 0 && product.realTimeInventory.totalStock > 0
+            });
+          }
+        });
+
+        // Use real-time inventory data instead of making separate API calls
+        await checkRentalStatus(data.products);
+      } else {
+        throw new Error(data.error || 'Failed to fetch products');
+      }
     } catch (err) {
-      console.error('Failed to fetch products:', err);
+      console.error('❌ Failed to fetch vendor products:', err);
       setError('Failed to load products');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Optimized refresh function for after product creation
+  const refreshProducts = async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
+    
+    try {
+      setIsRefreshing(true);
+      console.log('🔄 Refreshing products after creation...');
+      await fetchProducts();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -92,31 +128,25 @@ export default function VendorProducts() {
         };
       }} = {};
       
-      // Check each product for active rentals
-      for (const product of products) {
-        try {
-          const response = await fetch(`/api/products/${product.id}/rental-status`);
-          if (response.ok) {
-            const data = await response.json();
-            rentalStatusMap[product.id] = {
-              isRented: data.isCurrentlyRented || false,
-              rentalDetails: data.rentalDetails ? {
-                orderNumber: data.rentalDetails.orderNumber,
-                customerName: data.rentalDetails.customerName,
-                endDate: data.rentalDetails.endDate
-              } : undefined
-            };
-          } else {
-            // Fallback: assume not rented if API fails
-            rentalStatusMap[product.id] = { isRented: false };
-          }
-        } catch (error) {
-          console.error(`Failed to check rental status for product ${product.id}:`, error);
-          rentalStatusMap[product.id] = { isRented: false };
-        }
-      }
+      // Instead of checking each product individually, use the real-time inventory data
+      // which already contains rental information
+      products.forEach(product => {
+        const realTimeInventory = product.realTimeInventory;
+        const isCurrentlyRented = realTimeInventory ? realTimeInventory.currentlyRentedQuantity > 0 : false;
+        
+        rentalStatusMap[product.id] = {
+          isRented: isCurrentlyRented,
+          rentalDetails: isCurrentlyRented ? {
+            orderNumber: 'Multiple Orders', // Could be multiple orders
+            customerName: 'Various Customers',
+            endDate: new Date().toISOString() // Placeholder
+          } : undefined
+        };
+      });
       
       setActiveRentals(rentalStatusMap);
+      console.log('✅ Rental status updated from real-time inventory data');
+      
     } catch (error) {
       console.error('Failed to check rental status:', error);
       // Set all products as not rented if check fails
@@ -142,10 +172,19 @@ export default function VendorProducts() {
   });
 
   const handleDeleteProduct = async (productId: string) => {
-    // Check if product is currently rented
+    // Check if product is currently rented or fully booked
     const rentalStatus = activeRentals[productId];
+    const product = products.find(p => p.id === productId);
+    const realTimeInventory = product?.realTimeInventory;
+    const isFullyBooked = realTimeInventory ? realTimeInventory.availableQuantity === 0 && realTimeInventory.totalStock > 0 : false;
+    
     if (rentalStatus?.isRented) {
       alert('Cannot delete product while it is currently rented. Please wait for the rental to end.');
+      return;
+    }
+    
+    if (isFullyBooked) {
+      alert('Cannot delete product while it is fully booked. Please wait for reservations to end.');
       return;
     }
 
@@ -315,11 +354,20 @@ export default function VendorProducts() {
           const statusColor = getStatusColor(product.published);
           const defaultPrice = product.pricing?.[0]?.price || 0;
           const defaultPeriod = product.pricing?.[0]?.rentalPeriod?.name || 'day';
-          const stock = product.inventory?.quantityOnHand || 0;
+          
+          // Use real-time inventory data
+          const realTimeInventory = product.realTimeInventory;
+          const totalStock = realTimeInventory ? realTimeInventory.totalStock : (product.inventory?.quantityOnHand || 0);
+          const availableStock = realTimeInventory ? realTimeInventory.availableQuantity : totalStock;
+          const reservedStock = realTimeInventory ? realTimeInventory.reservedQuantity : 0;
+          
+          // Determine booking status
+          const isFullyBooked = availableStock === 0 && totalStock > 0;
+          const isPartiallyBooked = reservedStock > 0 && availableStock > 0;
           const isCurrentlyRented = activeRentals[product.id]?.isRented || false;
           const rentalDetails = activeRentals[product.id]?.rentalDetails;
           const productCategory = product.category || 'UNCATEGORIZED';
-          const isInactive = isCurrentlyRented; // Product is inactive when rented
+          const isInactive = isCurrentlyRented || isFullyBooked; // Product is inactive when rented or fully booked
 
           return (
             <div key={product.id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow ${isInactive ? 'opacity-75 border-2 border-red-200' : ''}`}>
@@ -332,21 +380,39 @@ export default function VendorProducts() {
                   >
                     {product.published ? 'Published' : 'Unpublished'}
                   </span>
-                  {isCurrentlyRented && (
+                  
+                  {/* Booking Status Badges */}
+                  {isFullyBooked && (
                     <span className="block px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                      Fully Booked
+                    </span>
+                  )}
+                  {isPartiallyBooked && !isFullyBooked && (
+                    <span className="block px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">
+                      Partially Booked
+                    </span>
+                  )}
+                  {isCurrentlyRented && (
+                    <span className="block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">
                       Currently Rented
                     </span>
                   )}
                   {isInactive && (
-                    <span className="block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">
+                    <span className="block px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800">
                       Inactive
                     </span>
                   )}
                 </div>
+                
                 <div className="absolute bottom-4 left-4 space-y-1">
                   <div className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    Stock: {stock}
+                    Stock: {availableStock} of {totalStock} available
                   </div>
+                  {reservedStock > 0 && (
+                    <div className="bg-red-500 bg-opacity-75 text-white px-2 py-1 rounded text-xs">
+                      {reservedStock} reserved
+                    </div>
+                  )}
                   <div className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                     {productCategory.replace(/_/g, ' ')}
                   </div>
@@ -382,22 +448,50 @@ export default function VendorProducts() {
                   {product.description || 'No description available'}
                 </p>
 
-                {/* Rental Status Details */}
-                {isCurrentlyRented && rentalDetails && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                {/* Booking/Rental Status Details */}
+                {(isFullyBooked || isPartiallyBooked || isCurrentlyRented) && (
+                  <div className={`mb-4 p-3 border rounded-lg ${
+                    isFullyBooked ? 'bg-red-50 border-red-200' : 
+                    isCurrentlyRented ? 'bg-orange-50 border-orange-200' : 
+                    'bg-yellow-50 border-yellow-200'
+                  }`}>
                     <div className="text-sm">
-                      <div className="font-medium text-red-800 mb-1">Currently Rented</div>
-                      <div className="text-red-700">
-                        <div>Order: {rentalDetails.orderNumber}</div>
-                        <div>Customer: {rentalDetails.customerName}</div>
-                        <div>Return: {new Date(rentalDetails.endDate).toLocaleDateString()}</div>
-                      </div>
+                      {isFullyBooked && (
+                        <>
+                          <div className="font-medium text-red-800 mb-1">Fully Booked</div>
+                          <div className="text-red-700">
+                            <div>All {totalStock} units are reserved</div>
+                            <div>Available: {availableStock} units</div>
+                          </div>
+                        </>
+                      )}
+                      
+                      {isPartiallyBooked && !isFullyBooked && (
+                        <>
+                          <div className="font-medium text-yellow-800 mb-1">Partially Booked</div>
+                          <div className="text-yellow-700">
+                            <div>Reserved: {reservedStock} of {totalStock} units</div>
+                            <div>Available: {availableStock} units</div>
+                          </div>
+                        </>
+                      )}
+                      
+                      {isCurrentlyRented && rentalDetails && (
+                        <>
+                          <div className="font-medium text-orange-800 mb-1">Currently Rented</div>
+                          <div className="text-orange-700">
+                            <div>Order: {rentalDetails.orderNumber}</div>
+                            <div>Customer: {rentalDetails.customerName}</div>
+                            <div>Return: {new Date(rentalDetails.endDate).toLocaleDateString()}</div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                <div className="grid grid-cols-4 gap-4 mb-4 text-center">
                   <div>
                     <div className="font-bold text-secondary-900">
                       {product.pricing?.length || 0}
@@ -416,10 +510,22 @@ export default function VendorProducts() {
                   </div>
                   <div>
                     <div className="font-bold text-secondary-900">
-                      {stock}
+                      {totalStock}
                     </div>
                     <div className="text-xs text-secondary-600">
-                      In Stock
+                      Total Stock
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`font-bold ${
+                      availableStock === 0 ? 'text-red-600' : 
+                      availableStock <= 2 ? 'text-yellow-600' : 
+                      'text-green-600'
+                    }`}>
+                      {availableStock}
+                    </div>
+                    <div className="text-xs text-secondary-600">
+                      Available
                     </div>
                   </div>
                 </div>
@@ -521,7 +627,7 @@ export default function VendorProducts() {
       <AddProductModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={fetchProducts}
+        onSuccess={refreshProducts}
       />
     </div>
   );

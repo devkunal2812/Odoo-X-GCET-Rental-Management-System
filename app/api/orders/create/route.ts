@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { getUserFromRequest } from "@/app/lib/auth";
 
 /**
  * POST /api/orders/create
  * 
  * Create Order API - Creates a new rental order after successful payment
- * This version saves orders to the database using Prisma
+ * This version saves orders to the database using Prisma and associates with authenticated user
  */
 export async function POST(request: NextRequest) {
   try {
+    // Get the authenticated user
+    const currentUser = await getUserFromRequest(request);
+    
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Authentication required to create orders" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     
     // Validate required fields
@@ -27,19 +38,25 @@ export async function POST(request: NextRequest) {
     // Generate order number
     const orderNumber = `ORD-${Date.now()}`;
     
-    // Calculate dates (rental starts tomorrow, ends in 3 days by default)
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() + 1);
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 4);
+    // Calculate dates from cart items (use actual rental dates if available)
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    // Use rental dates from first cart item if available
+    if (cartItems.length > 0 && cartItems[0].rentalStartDate && cartItems[0].rentalEndDate) {
+      startDate = new Date(cartItems[0].rentalStartDate);
+      endDate = new Date(cartItems[0].rentalEndDate);
+    } else {
+      // Fallback to default dates (rental starts tomorrow, ends in 3 days)
+      startDate.setDate(startDate.getDate() + 1);
+      endDate.setDate(endDate.getDate() + 4);
+    }
 
     try {
-      // Create or get default customer profile for demo purposes
+      // Get or create customer profile for the authenticated user
       let customerProfile = await prisma.customerProfile.findFirst({
         where: {
-          user: {
-            email: formData.deliveryEmail
-          }
+          userId: currentUser.id // ✅ Use authenticated user's ID
         },
         include: {
           user: true
@@ -47,21 +64,10 @@ export async function POST(request: NextRequest) {
       });
 
       if (!customerProfile) {
-        // Create a new user and customer profile
-        const user = await prisma.user.create({
-          data: {
-            firstName: formData.deliveryFirstName,
-            lastName: formData.deliveryLastName,
-            email: formData.deliveryEmail,
-            passwordHash: "temp_hash", // In production, this would be properly hashed
-            role: "CUSTOMER",
-            emailVerified: true
-          }
-        });
-
+        // Create customer profile for the authenticated user
         customerProfile = await prisma.customerProfile.create({
           data: {
-            userId: user.id,
+            userId: currentUser.id, // ✅ Use authenticated user's ID
             phone: formData.deliveryPhone,
             defaultAddress: `${formData.deliveryStreet}, ${formData.deliveryCity}, ${formData.deliveryState} ${formData.deliveryZip}`
           },
@@ -69,6 +75,20 @@ export async function POST(request: NextRequest) {
             user: true
           }
         });
+        console.log(`✅ Created customer profile for user: ${currentUser.email}`);
+      } else {
+        // Update customer profile with latest delivery info
+        customerProfile = await prisma.customerProfile.update({
+          where: { id: customerProfile.id },
+          data: {
+            phone: formData.deliveryPhone,
+            defaultAddress: `${formData.deliveryStreet}, ${formData.deliveryCity}, ${formData.deliveryState} ${formData.deliveryZip}`
+          },
+          include: {
+            user: true
+          }
+        });
+        console.log(`✅ Updated customer profile for user: ${currentUser.email}`);
       }
 
       // Get or create default vendor profile
@@ -100,8 +120,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Create or get products for order lines
+      // Create or get products for order lines and reservations
       const orderLines = [];
+      const reservations = [];
+      
       for (const item of cartItems) {
         let product = await prisma.product.findFirst({
           where: {
@@ -122,14 +144,35 @@ export async function POST(request: NextRequest) {
               published: true
             }
           });
+
+          // Create inventory for the product
+          await prisma.inventory.create({
+            data: {
+              productId: product.id,
+              quantityOnHand: item.product.stock || 10, // Default stock
+              reservedQuantity: 0
+            }
+          });
         }
+
+        // Use item-specific rental dates if available, otherwise use order dates
+        const itemStartDate = item.rentalStartDate ? new Date(item.rentalStartDate) : startDate;
+        const itemEndDate = item.rentalEndDate ? new Date(item.rentalEndDate) : endDate;
 
         orderLines.push({
           productId: product.id,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          rentalStart: startDate,
-          rentalEnd: endDate
+          rentalStart: itemStartDate,
+          rentalEnd: itemEndDate
+        });
+
+        // Create reservation data for this item
+        reservations.push({
+          productId: product.id,
+          quantity: item.quantity,
+          startDate: itemStartDate,
+          endDate: itemEndDate
         });
       }
 
@@ -145,10 +188,19 @@ export async function POST(request: NextRequest) {
           totalAmount: total,
           lines: {
             create: orderLines
+          },
+          // Create reservations for time-based availability
+          reservations: {
+            create: reservations
           }
         },
         include: {
           lines: {
+            include: {
+              product: true
+            }
+          },
+          reservations: {
             include: {
               product: true
             }
@@ -161,6 +213,18 @@ export async function POST(request: NextRequest) {
           vendor: true
         }
       });
+
+      // Update inventory reserved quantities
+      for (const reservation of reservations) {
+        await prisma.inventory.update({
+          where: { productId: reservation.productId },
+          data: {
+            reservedQuantity: {
+              increment: reservation.quantity
+            }
+          }
+        });
+      }
 
       // Create invoice for the order
       const invoiceNumber = `INV-${orderNumber.replace('ORD-', '')}`;
@@ -196,12 +260,14 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Order saved to database:', dbOrder.orderNumber);
       console.log('✅ Invoice created in database:', dbInvoice.invoiceNumber);
+      console.log('✅ Reservations created:', dbOrder.reservations?.length || 0);
       console.log('📊 Database records created:');
-      console.log('   - Customer:', customerProfile.user.email);
+      console.log('   - Customer:', currentUser.email); // ✅ Use authenticated user
       console.log('   - Vendor:', vendorProfile.companyName);
       console.log('   - Products:', orderLines.length);
       console.log('   - Order ID:', dbOrder.id);
       console.log('   - Invoice ID:', dbInvoice.id);
+      console.log('   - Rental Period:', startDate.toISOString(), 'to', endDate.toISOString());
 
       // Create order data for response (compatible with frontend)
       const orderData = {
@@ -258,7 +324,7 @@ export async function POST(request: NextRequest) {
           unitPrice: item.unitPrice,
           totalPrice: item.unitPrice * item.quantity * item.rentalDuration
         })),
-        notes: `✅ Order placed via Razorpay. Payment ID: ${paymentId}. PAYMENT VERIFIED & SAVED TO DATABASE.`,
+        notes: `✅ Order placed via Razorpay. Payment ID: ${paymentId}. PAYMENT VERIFIED & SAVED TO DATABASE. User: ${currentUser.email}`,
         createdAt: new Date().toISOString(),
         dbOrderId: dbOrder.id // Include database ID for reference
       };
@@ -327,7 +393,7 @@ export async function POST(request: NextRequest) {
           unitPrice: item.unitPrice,
           totalPrice: item.unitPrice * item.quantity * item.rentalDuration
         })),
-        notes: `Order placed via Razorpay. Payment ID: ${paymentId}. Database save failed, using localStorage fallback.`,
+        notes: `Order placed via Razorpay. Payment ID: ${paymentId}. Database save failed, using localStorage fallback. User: ${currentUser.email}`,
         createdAt: new Date().toISOString()
       };
       

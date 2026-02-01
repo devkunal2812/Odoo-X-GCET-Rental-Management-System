@@ -1,18 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getSystemSettings } from "@/app/lib/settings";
+import { getUserFromRequest } from "@/app/lib/auth";
 
 /**
  * GET /api/invoices/user
  * 
- * Get User Invoices API - Retrieves REAL invoices for the current user from database
+ * Get User Invoices API - Retrieves REAL invoices for the current authenticated user from database
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('📥 Fetching real invoices from database...');
+    // Get the authenticated user
+    const currentUser = await getUserFromRequest(request);
     
-    // Get real invoices from database
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    console.log(`📥 Fetching invoices for user: ${currentUser.email} (ID: ${currentUser.id})`);
+    
+    // Get real invoices from database for the current user only
     const invoices = await prisma.invoice.findMany({
+      where: {
+        saleOrder: {
+          customer: {
+            userId: currentUser.id // ✅ Filter by current user's ID
+          }
+        }
+      },
       include: {
         saleOrder: {
           include: {
@@ -49,14 +67,15 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    console.log(`✅ Found ${invoices.length} real invoices in database`);
+    console.log(`✅ Found ${invoices.length} invoices for user ${currentUser.email}`);
 
     if (invoices.length === 0) {
       return NextResponse.json({ 
         success: true, 
         invoices: [],
         source: "database",
-        message: "No invoices found. Create an order to generate invoices."
+        message: `No invoices found for user ${currentUser.email}. Create an order to generate invoices.`,
+        user: currentUser.email
       });
     }
 
@@ -132,7 +151,8 @@ export async function GET() {
       success: true, 
       invoices: transformedInvoices,
       source: "database",
-      count: transformedInvoices.length
+      count: transformedInvoices.length,
+      user: currentUser.email // Include user info for debugging
     });
 
   } catch (error: any) {

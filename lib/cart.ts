@@ -16,6 +16,9 @@ export interface CartItem {
   rentalUnit: 'hour' | 'day' | 'week';
   unitPrice: number;
   selectedAttributes?: Record<string, string>;
+  // NEW: Time-based rental fields
+  rentalStartDate?: string; // ISO string
+  rentalEndDate?: string;   // ISO string
 }
 
 // Get cart items from localStorage
@@ -67,7 +70,7 @@ export const getMaxAddableQuantity = (productId: string, availableStock: number)
   return Math.max(0, availableStock - currentQuantityInCart);
 };
 
-// Add item to cart with stock validation
+// Add item to cart with stock validation (keep for backward compatibility)
 export const addToCartWithStockCheck = (item: Omit<CartItem, 'id'>, availableStock: number): { success: boolean; message: string; maxAvailable?: number } => {
   console.log('Adding to cart with stock check:', item, 'Available stock:', availableStock);
   
@@ -91,6 +94,52 @@ export const addToCartWithStockCheck = (item: Omit<CartItem, 'id'>, availableSto
     success: true,
     message: 'Item added to cart successfully'
   };
+};
+
+// Validate entire cart availability before checkout
+export const validateCartAvailability = async (): Promise<{ valid: boolean; message: string; invalidItems?: any[] }> => {
+  const cartItems = getCartItems();
+  
+  if (cartItems.length === 0) {
+    return { valid: true, message: 'Cart is empty' };
+  }
+
+  try {
+    const response = await fetch('/api/cart/validate-availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cartItems: cartItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          rentalStartDate: item.rentalStartDate,
+          rentalEndDate: item.rentalEndDate
+        }))
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      return {
+        valid: false,
+        message: data.error || 'Failed to validate cart'
+      };
+    }
+
+    return {
+      valid: data.valid,
+      message: data.message,
+      invalidItems: data.invalidItems
+    };
+
+  } catch (error) {
+    console.error('Error validating cart:', error);
+    return {
+      valid: false,
+      message: 'Failed to validate cart availability'
+    };
+  }
 };
 
 // Add item to cart

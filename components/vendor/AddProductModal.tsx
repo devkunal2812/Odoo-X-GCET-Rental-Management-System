@@ -76,19 +76,38 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
     const fetchRentalPeriods = async () => {
         try {
             setLoadingPeriods(true);
-            // Use vendor-accessible endpoint instead of admin settings
+            console.log('🔍 Fetching rental periods for product creation...');
+            
+            // Use the public rental periods endpoint
             const response = await api.get<{
                 success: boolean;
-                rentalPeriods: RentalPeriod[];
-            }>('/vendor/rental-periods');
-            if (response.success && response.rentalPeriods) {
-                setRentalPeriods(response.rentalPeriods);
-                if (response.rentalPeriods.length > 0 && pricing[0].rentalPeriodId === "") {
-                    setPricing([{ rentalPeriodId: response.rentalPeriods[0].id, price: 0 }]);
+                periods: RentalPeriod[];
+            }>('/rental-periods');
+            
+            console.log('📦 Rental periods response:', response);
+            
+            if (response.success && response.periods) {
+                // Map the response to match expected format
+                const mappedPeriods = response.periods.map(period => ({
+                    id: period.id,
+                    name: period.name,
+                    unit: period.unit,
+                    duration: period.duration
+                }));
+                
+                setRentalPeriods(mappedPeriods);
+                console.log(`✅ Loaded ${mappedPeriods.length} rental periods`);
+                
+                if (mappedPeriods.length > 0 && pricing[0].rentalPeriodId === "") {
+                    setPricing([{ rentalPeriodId: mappedPeriods[0].id, price: 0 }]);
                 }
+            } else {
+                console.log('❌ No rental periods found in response');
+                setRentalPeriods([]);
             }
         } catch (err) {
-            console.error("Failed to fetch rental periods:", err);
+            console.error("❌ Failed to fetch rental periods:", err);
+            setRentalPeriods([]);
         } finally {
             setLoadingPeriods(false);
         }
@@ -186,6 +205,8 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
         setError(null);
         setLoading(true);
 
+        console.log('🔍 Starting product creation...');
+
         // Validation
         if (!name.trim()) {
             setError("Product name is required");
@@ -211,26 +232,32 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
             options: e.options.filter(o => o.value.trim())
         }));
 
+        const productData = {
+            name: name.trim(),
+            description: description.trim() || undefined,
+            productType,
+            category: category || undefined,
+            isRentable,
+            quantityOnHand,
+            pricing: validPricing,
+            variants: validVariants.length > 0 ? validVariants : undefined,
+            extraOptions: validExtraOptions.length > 0 ? validExtraOptions : undefined,
+        };
+
+        console.log('📦 Product data to create:', productData);
+
         try {
-            await productService.create({
-                name: name.trim(),
-                description: description.trim() || undefined,
-                productType,
-                category: category || undefined, // Add category to API call
-                isRentable,
-                quantityOnHand,
-                pricing: validPricing,
-                variants: validVariants.length > 0 ? validVariants : undefined,
-                extraOptions: validExtraOptions.length > 0 ? validExtraOptions : undefined,
-            });
+            const result = await productService.create(productData);
+            console.log('✅ Product created successfully:', result);
 
             setSuccess(true);
             setTimeout(() => {
                 resetForm();
-                onSuccess();
+                onSuccess(); // This should refresh the products list
                 onClose();
             }, 1500);
         } catch (err: any) {
+            console.error('❌ Product creation failed:', err);
             setError(err.message || "Failed to create product");
         } finally {
             setLoading(false);

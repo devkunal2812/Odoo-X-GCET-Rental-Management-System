@@ -242,13 +242,23 @@ export default function CartPage() {
                           <h3 className="text-xl font-bold mb-1 text-gray-900">{item.product.name}</h3>
                           <p className="text-sm font-medium mb-3 text-gray-600">by {item.product.vendor}</p>
                           
-                          {/* Selected Attributes with better styling */}
+                          {/* Selected Attributes and Rental Dates */}
                           <div className="mb-4">
                             {item.selectedAttributes && Object.entries(item.selectedAttributes).map(([key, value]) => (
                               <span key={key} className="inline-block text-xs px-3 py-1 rounded-full mr-2 mb-1 font-medium shadow-sm bg-blue-50 text-blue-700">
                                 {key}: {value}
                               </span>
                             ))}
+                            {item.rentalStartDate && item.rentalEndDate && (
+                              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="text-xs font-medium text-green-800 mb-1">Rental Period</div>
+                                <div className="text-xs text-green-700">
+                                  <div>Start: {new Date(item.rentalStartDate).toLocaleString()}</div>
+                                  <div>End: {new Date(item.rentalEndDate).toLocaleString()}</div>
+                                  <div>Duration: {item.rentalDuration} day{item.rentalDuration > 1 ? 's' : ''}</div>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Quantity and Duration Controls with better styling */}

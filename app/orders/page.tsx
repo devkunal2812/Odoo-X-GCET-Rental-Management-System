@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   EyeIcon,
   ChatBubbleLeftIcon,
@@ -32,17 +33,25 @@ const formatDate = (dateString: string) => {
 const loadOrdersFromDatabase = async () => {
   try {
     console.log('🔗 Calling /api/orders/user...');
-    const response = await fetch('/api/orders/user');
+    const response = await fetch('/api/orders/user', {
+      credentials: 'include', // ✅ Include cookies for authentication
+    });
     console.log('📡 API Response status:', response.status);
+    
+    if (response.status === 401) {
+      console.log('❌ Authentication required - redirecting to login');
+      window.location.href = '/login?message=Please login to view your orders';
+      return [];
+    }
     
     const result = await response.json();
     console.log('📦 API Response data:', result);
     
     if (result.success) {
-      console.log(`✅ Loaded ${result.orders.length} orders from ${result.source}`);
+      console.log(`✅ Loaded ${result.orders.length} orders from ${result.source} for user: ${result.user || 'unknown'}`);
       return result.orders;
     } else {
-      console.log('❌ Database API failed');
+      console.log('❌ Database API failed:', result.error);
       return [];
     }
   } catch (error) {
@@ -82,27 +91,39 @@ const getPaymentStatusColor = (status: string) => {
 };
 
 export default function OrdersPage() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load orders when component mounts
+  // Redirect to login if not authenticated
   useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      window.location.href = '/login?message=Please login to view your orders';
+      return;
+    }
+  }, [authLoading, isAuthenticated]);
+
+  // Load orders when component mounts and user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
+
     const loadOrders = async () => {
       try {
-        console.log('🔍 Loading orders from database only...');
+        console.log(`🔍 Loading orders for user: ${user?.email}...`);
+        setLoading(true);
         
         // Only load from database - no localStorage fallback
         const dbOrders = await loadOrdersFromDatabase();
         
-        console.log(`📊 Found ${dbOrders.length} orders from database`);
+        console.log(`📊 Found ${dbOrders.length} orders for user ${user?.email}`);
         setOrders(dbOrders);
         setLoading(false);
         
         if (dbOrders.length > 0) {
-          console.log('✅ Loaded orders from database successfully');
+          console.log('✅ Loaded user-specific orders from database successfully');
         } else {
-          console.log('ℹ️ No orders found in database - user needs to make a purchase');
+          console.log(`ℹ️ No orders found for user ${user?.email} - user needs to make a purchase`);
         }
         
       } catch (error) {
@@ -119,7 +140,7 @@ export default function OrdersPage() {
     window.addEventListener('orderUpdated', handleOrderUpdate);
     
     return () => window.removeEventListener('orderUpdated', handleOrderUpdate);
-  }, []);
+  }, [isAuthenticated, authLoading, user]);
 
   const handleCancelOrder = (orderId: string) => {
     if (confirm("Are you sure you want to cancel this order?")) {
@@ -251,7 +272,7 @@ export default function OrdersPage() {
   );
 
   // Show loading state
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-secondary-50">
         <Header currentPage="orders" />
@@ -259,12 +280,21 @@ export default function OrdersPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <h3 className="text-xl font-semibold mb-2 text-secondary-900">Loading Orders...</h3>
-            <p className="text-secondary-600">Please wait while we fetch your orders.</p>
+            <h3 className="text-xl font-semibold mb-2 text-secondary-900">
+              {authLoading ? 'Checking Authentication...' : 'Loading Orders...'}
+            </h3>
+            <p className="text-secondary-600">
+              {authLoading ? 'Please wait while we verify your login.' : `Please wait while we fetch your orders${user ? ` for ${user.email}` : ''}.`}
+            </p>
           </div>
         </div>
       </div>
     );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -279,7 +309,7 @@ export default function OrdersPage() {
               My Orders
             </h1>
             <p className="mt-2 text-secondary-600">
-              Track and manage your rental orders
+              Track and manage your rental orders{user ? ` for ${user.email}` : ''}
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
@@ -605,7 +635,7 @@ export default function OrdersPage() {
               No orders found
             </h3>
             <p className="mb-6 text-secondary-600">
-              You don't have any rental orders yet. Complete a purchase to see your orders here.
+              You don't have any rental orders yet{user ? ` for ${user.email}` : ''}. Complete a purchase to see your orders here.
             </p>
             <Link
               href="/products"

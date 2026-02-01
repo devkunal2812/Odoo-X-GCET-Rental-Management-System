@@ -86,19 +86,30 @@ export default function VendorOrders() {
     const fetchOrders = async () => {
       try {
         setLoading(true);
+        console.log('🔍 Fetching vendor orders...', { user: user?.email, role: user?.role });
+        
         const response = await api.get<{ success: boolean; orders: Order[] }>('/orders');
+        console.log('📦 Vendor orders API response:', response);
+        
         if (response.success) {
           setOrders(response.orders || []);
+          console.log(`✅ Loaded ${response.orders?.length || 0} orders for vendor`);
+        } else {
+          console.log('❌ Failed to fetch orders:', response);
         }
       } catch (error) {
-        console.error('Error fetching orders:', error);
+        console.error('❌ Error fetching vendor orders:', error);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
+    if (user && user.role === 'VENDOR') {
       fetchOrders();
+    } else {
+      console.log('⚠️ User not ready or not a vendor:', { user: user?.email, role: user?.role });
+      setLoading(false);
     }
   }, [user]);
 

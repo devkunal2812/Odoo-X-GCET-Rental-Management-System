@@ -114,6 +114,24 @@ export interface Product {
   pricing?: ProductPricing[];
   inventory?: Inventory;
   variants?: ProductVariant[];
+  // Real-time inventory data (from /api/products/available)
+  realTimeInventory?: {
+    totalStock: number;
+    currentlyRentedQuantity: number;
+    reservedQuantity: number;
+    availableQuantity: number;
+    isOutOfStock: boolean;
+    isPartiallyAvailable: boolean;
+  };
+  // Current rental information
+  currentRentals?: Array<{
+    orderNumber: string;
+    quantity: number;
+    customerName: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  }>;
 }
 
 export interface ProductPricing {
