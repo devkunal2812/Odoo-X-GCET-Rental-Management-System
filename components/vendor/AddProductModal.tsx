@@ -48,6 +48,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [productType, setProductType] = useState<"GOODS" | "SERVICE">("GOODS");
+    const [category, setCategory] = useState<string>(""); // Add category state
     const [isRentable, setIsRentable] = useState(true);
     const [quantityOnHand, setQuantityOnHand] = useState(0);
     const [pricing, setPricing] = useState<PricingTier[]>([{ rentalPeriodId: "", price: 0 }]);
@@ -168,6 +169,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
         setName("");
         setDescription("");
         setProductType("GOODS");
+        setCategory(""); // Reset category
         setIsRentable(true);
         setQuantityOnHand(0);
         setPricing([{ rentalPeriodId: rentalPeriods[0]?.id || "", price: 0 }]);
@@ -214,6 +216,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
                 name: name.trim(),
                 description: description.trim() || undefined,
                 productType,
+                category: category || undefined, // Add category to API call
                 isRentable,
                 quantityOnHand,
                 pricing: validPricing,
@@ -313,6 +316,26 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
                                     placeholder="Describe your product (optional)"
                                     disabled={loading}
                                 />
+                            </div>
+
+                            {/* Product Category */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Product Category
+                                </label>
+                                <select
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                                    disabled={loading}
+                                >
+                                    <option value="">Select a category (optional)</option>
+                                    <option value="ELECTRONICS">Electronics</option>
+                                    <option value="FURNITURE">Furniture</option>
+                                    <option value="VEHICLES">Vehicles</option>
+                                    <option value="GYM_AND_SPORTS_EQUIPMENTS">Gym & Sports Equipments</option>
+                                    <option value="CONSTRUCTION_TOOLS">Construction Tools</option>
+                                </select>
                             </div>
 
                             {/* Type and Quantity Row */}

@@ -9,6 +9,7 @@ export interface CartItem {
     image: string;
     vendor: string;
     vendorId: string;
+    stock?: number; // Add stock information
   };
   quantity: number;
   rentalDuration: number;
@@ -43,6 +44,53 @@ export const saveCartItems = (items: CartItem[]): void => {
   } catch (error) {
     console.error('Error saving cart items:', error);
   }
+};
+
+// Get quantity of specific product already in cart
+export const getProductQuantityInCart = (productId: string): number => {
+  const cartItems = getCartItems();
+  return cartItems
+    .filter(item => item.productId === productId)
+    .reduce((total, item) => total + item.quantity, 0);
+};
+
+// Check if adding quantity would exceed stock
+export const canAddToCart = (productId: string, quantityToAdd: number, availableStock: number): boolean => {
+  const currentQuantityInCart = getProductQuantityInCart(productId);
+  const totalAfterAdd = currentQuantityInCart + quantityToAdd;
+  return totalAfterAdd <= availableStock;
+};
+
+// Get maximum quantity that can be added to cart for a product
+export const getMaxAddableQuantity = (productId: string, availableStock: number): number => {
+  const currentQuantityInCart = getProductQuantityInCart(productId);
+  return Math.max(0, availableStock - currentQuantityInCart);
+};
+
+// Add item to cart with stock validation
+export const addToCartWithStockCheck = (item: Omit<CartItem, 'id'>, availableStock: number): { success: boolean; message: string; maxAvailable?: number } => {
+  console.log('Adding to cart with stock check:', item, 'Available stock:', availableStock);
+  
+  const currentQuantityInCart = getProductQuantityInCart(item.productId);
+  const totalAfterAdd = currentQuantityInCart + item.quantity;
+  
+  if (totalAfterAdd > availableStock) {
+    const maxAddable = getMaxAddableQuantity(item.productId, availableStock);
+    return {
+      success: false,
+      message: maxAddable > 0 
+        ? `Only ${maxAddable} more items can be added to cart (${currentQuantityInCart} already in cart, ${availableStock} total stock)`
+        : `Cannot add more items. You already have ${currentQuantityInCart} items in cart (maximum stock: ${availableStock})`,
+      maxAvailable: maxAddable
+    };
+  }
+  
+  // Proceed with normal add to cart
+  addToCart(item);
+  return {
+    success: true,
+    message: 'Item added to cart successfully'
+  };
 };
 
 // Add item to cart
@@ -82,7 +130,40 @@ export const removeFromCart = (itemId: string): void => {
   saveCartItems(updatedItems);
 };
 
-// Update item quantity
+// Update item quantity with stock validation
+export const updateCartItemQuantityWithStockCheck = (itemId: string, quantity: number, availableStock: number): { success: boolean; message: string } => {
+  if (quantity <= 0) {
+    removeFromCart(itemId);
+    return { success: true, message: 'Item removed from cart' };
+  }
+
+  const cartItems = getCartItems();
+  const itemIndex = cartItems.findIndex(item => item.id === itemId);
+  
+  if (itemIndex >= 0) {
+    const item = cartItems[itemIndex];
+    const otherItemsQuantity = cartItems
+      .filter(cartItem => cartItem.productId === item.productId && cartItem.id !== itemId)
+      .reduce((total, cartItem) => total + cartItem.quantity, 0);
+    
+    const totalQuantity = otherItemsQuantity + quantity;
+    
+    if (totalQuantity > availableStock) {
+      return {
+        success: false,
+        message: `Cannot set quantity to ${quantity}. Maximum available: ${availableStock - otherItemsQuantity} (${availableStock} total stock, ${otherItemsQuantity} in other cart items)`
+      };
+    }
+    
+    cartItems[itemIndex].quantity = quantity;
+    saveCartItems(cartItems);
+    return { success: true, message: 'Quantity updated successfully' };
+  }
+  
+  return { success: false, message: 'Item not found in cart' };
+};
+
+// Update item quantity (original function for backward compatibility)
 export const updateCartItemQuantity = (itemId: string, quantity: number): void => {
   if (quantity <= 0) {
     removeFromCart(itemId);

@@ -9,7 +9,7 @@ import { ShoppingCartIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
 import { 
   getCartItems, 
-  updateCartItemQuantity, 
+  updateCartItemQuantityWithStockCheck, 
   updateCartItemDuration, 
   removeFromCart,
   type CartItem 
@@ -22,6 +22,7 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount: number} | null>(null);
   const [gstPercentage, setGstPercentage] = useState(18); // Default 18% GST
+  const [stockErrors, setStockErrors] = useState<{[itemId: string]: string}>({});
 
   // Load cart items from localStorage
   useEffect(() => {
@@ -64,7 +65,35 @@ export default function CartPage() {
   }, []);
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
-    updateCartItemQuantity(itemId, newQuantity);
+    const item = cartItems.find(cartItem => cartItem.id === itemId);
+    if (!item) return;
+
+    const availableStock = item.product.stock || 0;
+    const result = updateCartItemQuantityWithStockCheck(itemId, newQuantity, availableStock);
+    
+    if (!result.success) {
+      // Show error message
+      setStockErrors(prev => ({
+        ...prev,
+        [itemId]: result.message
+      }));
+      
+      // Clear error after 3 seconds
+      setTimeout(() => {
+        setStockErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[itemId];
+          return newErrors;
+        });
+      }, 3000);
+    } else {
+      // Clear any existing error for this item
+      setStockErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[itemId];
+        return newErrors;
+      });
+    }
   };
 
   const updateDuration = (itemId: string, newDuration: number) => {
@@ -236,11 +265,17 @@ export default function CartPage() {
                                 <span className="px-4 py-2 text-sm font-bold min-w-[3rem] text-center text-gray-900">{item.quantity}</span>
                                 <button
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                  className="p-2 hover:bg-gray-100 transition-colors rounded-r-lg text-gray-600"
+                                  disabled={(item.product.stock || 0) <= item.quantity}
+                                  className="p-2 hover:bg-gray-100 transition-colors rounded-r-lg text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   <PlusIcon className="h-4 w-4" />
                                 </button>
                               </div>
+                              {item.product.stock && (
+                                <span className="ml-2 text-xs text-gray-500">
+                                  (Stock: {item.product.stock})
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center">
@@ -264,6 +299,13 @@ export default function CartPage() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Stock Error Message */}
+                          {stockErrors[item.id] && (
+                            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+                              <p className="text-sm text-red-600">{stockErrors[item.id]}</p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Price and Remove Button */}

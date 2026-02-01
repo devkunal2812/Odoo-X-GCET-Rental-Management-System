@@ -35,6 +35,7 @@ export const productSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   productType: z.enum(["GOODS", "SERVICE"]).default("GOODS"),
+  category: z.enum(["ELECTRONICS", "FURNITURE", "VEHICLES", "GYM_AND_SPORTS_EQUIPMENTS", "CONSTRUCTION_TOOLS"]).optional(),
   isRentable: z.boolean().default(true),
   quantityOnHand: z.number().int().min(0).default(0),
   pricing: z.array(z.object({

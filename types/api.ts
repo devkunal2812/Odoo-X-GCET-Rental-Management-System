@@ -104,6 +104,7 @@ export interface Product {
   name: string;
   description?: string;
   productType: ProductType;
+  category?: ProductCategory; // Add category field
   isRentable: boolean;
   published: boolean;
   extraOptions?: string; // JSON string
@@ -148,6 +149,7 @@ export interface CreateProductRequest {
   name: string;
   description?: string;
   productType: ProductType;
+  category?: ProductCategory; // Add category field for products
   isRentable: boolean;
   quantityOnHand: number;
   pricing: Array<{

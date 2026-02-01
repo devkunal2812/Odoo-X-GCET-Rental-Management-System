@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
           vendor: {
             select: {
               companyName: true,
+              category: true,
             },
           },
           pricing: {

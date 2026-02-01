@@ -9,11 +9,10 @@ import {
   ShoppingCartIcon,
   CheckIcon
 } from "@heroicons/react/24/outline";
-import { addToCart, isProductInCart } from "../../lib/cart";
+import { addToCartWithStockCheck, isProductInCart, getProductQuantityInCart } from "../../lib/cart";
 import { productService } from "@/app/lib/services/products";
 import type { Product } from "@/types/api";
 
-const categories = ["All", "Electronics", "Tools", "Party Supplies", "Sports", "Vehicles"];
 const sortOptions = ["Featured", "Price: Low to High", "Price: High to Low", "Newest"];
 
 const fadeInUp = {
@@ -32,9 +31,7 @@ const staggerContainer = {
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("Featured");
-  const [showFilters, setShowFilters] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +126,21 @@ export default function ProductsPage() {
   const handleAddToCart = (product: Product) => {
     if (cartItems.includes(product.id)) return;
 
+    const availableStock = product.inventory?.quantityOnHand || 0;
+    const currentQuantityInCart = getProductQuantityInCart(product.id);
+    
+    // Check if product is out of stock
+    if (availableStock <= 0) {
+      alert('This product is currently out of stock.');
+      return;
+    }
+
+    // Check if user already has maximum quantity in cart
+    if (currentQuantityInCart >= availableStock) {
+      alert(`You already have the maximum available quantity (${availableStock}) of this product in your cart.`);
+      return;
+    }
+
     const defaultPrice = product.pricing?.[0]?.price || 0;
     const defaultPeriod = product.pricing?.[0]?.rentalPeriod?.name || 'day';
 
@@ -139,7 +151,8 @@ export default function ProductsPage() {
         name: product.name,
         image: '/api/placeholder/400/300',
         vendor: product.vendor?.companyName || 'Unknown Vendor',
-        vendorId: product.vendorId
+        vendorId: product.vendorId,
+        stock: availableStock
       },
       quantity: 1,
       rentalDuration: 1,
@@ -148,11 +161,17 @@ export default function ProductsPage() {
       selectedAttributes: {}
     };
 
-    addToCart(cartItem);
+    // Use stock-aware add to cart function
+    const result = addToCartWithStockCheck(cartItem, availableStock);
     
-    // Show success feedback
-    setAddedToCart(product.id);
-    setTimeout(() => setAddedToCart(null), 2000);
+    if (result.success) {
+      // Show success feedback
+      setAddedToCart(product.id);
+      setTimeout(() => setAddedToCart(null), 2000);
+    } else {
+      // Show error message
+      alert(result.message);
+    }
   };
 
   if (loading) {
@@ -303,6 +322,30 @@ export default function ProductsPage() {
                       <span className="text-sm text-secondary-600">{vendorName}</span>
                     </div>
 
+                    {/* Stock Information */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-secondary-600">Stock Available:</span>
+                        <span className={`text-sm font-medium ${
+                          isAvailable 
+                            ? (product.inventory?.quantityOnHand || 0) <= 5 
+                              ? 'text-warning-600' 
+                              : 'text-success-600'
+                            : 'text-error-600'
+                        }`}>
+                          {product.inventory?.quantityOnHand || 0} units
+                        </span>
+                      </div>
+                      {isAvailable && (product.inventory?.quantityOnHand || 0) <= 5 && (
+                        <p className="text-xs text-warning-600 mt-1">Only few left in stock!</p>
+                      )}
+                      {getProductQuantityInCart(product.id) > 0 && (
+                        <p className="text-xs text-primary-600 mt-1">
+                          {getProductQuantityInCart(product.id)} already in cart
+                        </p>
+                      )}
+                    </div>
+
                     {/* Price and Actions */}
                     <div className="flex items-center justify-between">
                       <div>
@@ -319,20 +362,32 @@ export default function ProductsPage() {
                         </Link>
                         <motion.button
                           onClick={() => handleAddToCart(product)}
-                          disabled={!isAvailable}
+                          disabled={!isAvailable || getProductQuantityInCart(product.id) >= (product.inventory?.quantityOnHand || 0)}
                           className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${
-                            isAvailable
-                              ? cartItems.includes(product.id)
-                                ? 'bg-success-600 text-white cursor-default'
-                                : addedToCart === product.id
-                                  ? 'bg-success-600 text-white'
-                                  : 'bg-primary-600 text-white hover:bg-primary-700'
-                              : 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+                            !isAvailable
+                              ? 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+                              : getProductQuantityInCart(product.id) >= (product.inventory?.quantityOnHand || 0)
+                                ? 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+                                : cartItems.includes(product.id)
+                                  ? 'bg-success-600 text-white cursor-default'
+                                  : addedToCart === product.id
+                                    ? 'bg-success-600 text-white'
+                                    : 'bg-primary-600 text-white hover:bg-primary-700'
                           }`}
-                          whileHover={isAvailable && !cartItems.includes(product.id) ? { scale: 1.05 } : {}}
-                          whileTap={isAvailable && !cartItems.includes(product.id) ? { scale: 0.95 } : {}}
+                          whileHover={isAvailable && !cartItems.includes(product.id) && getProductQuantityInCart(product.id) < (product.inventory?.quantityOnHand || 0) ? { scale: 1.05 } : {}}
+                          whileTap={isAvailable && !cartItems.includes(product.id) && getProductQuantityInCart(product.id) < (product.inventory?.quantityOnHand || 0) ? { scale: 0.95 } : {}}
                         >
-                          {cartItems.includes(product.id) ? (
+                          {!isAvailable ? (
+                            <>
+                              <ShoppingCartIcon className="h-4 w-4 mr-1" />
+                              Out of Stock
+                            </>
+                          ) : getProductQuantityInCart(product.id) >= (product.inventory?.quantityOnHand || 0) ? (
+                            <>
+                              <CheckIcon className="h-4 w-4 mr-1" />
+                              Max in Cart
+                            </>
+                          ) : cartItems.includes(product.id) ? (
                             <>
                               <CheckIcon className="h-4 w-4 mr-1" />
                               Added

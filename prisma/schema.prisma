@@ -90,6 +90,7 @@ model Product {
   name        String
   description String?
   productType ProductType @default(GOODS)
+  category    ProductCategory? // Add category field to products
   isRentable  Boolean     @default(true)
   published   Boolean     @default(false)
   extraOptions String?    @default("[]")

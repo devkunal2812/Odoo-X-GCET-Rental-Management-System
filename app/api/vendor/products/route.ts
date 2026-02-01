@@ -17,6 +17,7 @@ export const POST = requireRole("VENDOR")(async (request: NextRequest, { user }:
         name: data.name,
         description: data.description,
         productType: data.productType,
+        category: data.category, // Add category field
         isRentable: data.isRentable,
         extraOptions,
         pricing: {

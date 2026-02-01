@@ -17,7 +17,7 @@ import type { Product } from "@/types/api";
 import { useAuth } from "@/contexts/AuthContext";
 import AddProductModal from "@/components/vendor/AddProductModal";
 
-const categories = ["All", "Electronics", "Tools", "Party Supplies", "Sports"];
+const categories = ["All", "ELECTRONICS", "FURNITURE", "VEHICLES", "GYM_AND_SPORTS_EQUIPMENTS", "CONSTRUCTION_TOOLS"];
 const statusOptions = ["All", "Published", "Unpublished"];
 
 const getStatusColor = (published: boolean) => {
@@ -37,6 +37,14 @@ export default function VendorProducts() {
   const [showFilters, setShowFilters] = useState(false);
   const [publishingProducts, setPublishingProducts] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeRentals, setActiveRentals] = useState<{[productId: string]: {
+    isRented: boolean;
+    rentalDetails?: {
+      orderNumber: string;
+      customerName: string;
+      endDate: string;
+    };
+  }}>({});
 
   useEffect(() => {
     fetchProducts();
@@ -62,6 +70,9 @@ export default function VendorProducts() {
         published: false, // Include unpublished products
       });
       setProducts(response.products);
+
+      // Check rental status for each product
+      await checkRentalStatus(response.products);
     } catch (err) {
       console.error('Failed to fetch products:', err);
       setError('Failed to load products');
@@ -70,19 +81,84 @@ export default function VendorProducts() {
     }
   };
 
+  const checkRentalStatus = async (products: Product[]) => {
+    try {
+      const rentalStatusMap: {[productId: string]: {
+        isRented: boolean;
+        rentalDetails?: {
+          orderNumber: string;
+          customerName: string;
+          endDate: string;
+        };
+      }} = {};
+      
+      // Check each product for active rentals
+      for (const product of products) {
+        try {
+          const response = await fetch(`/api/products/${product.id}/rental-status`);
+          if (response.ok) {
+            const data = await response.json();
+            rentalStatusMap[product.id] = {
+              isRented: data.isCurrentlyRented || false,
+              rentalDetails: data.rentalDetails ? {
+                orderNumber: data.rentalDetails.orderNumber,
+                customerName: data.rentalDetails.customerName,
+                endDate: data.rentalDetails.endDate
+              } : undefined
+            };
+          } else {
+            // Fallback: assume not rented if API fails
+            rentalStatusMap[product.id] = { isRented: false };
+          }
+        } catch (error) {
+          console.error(`Failed to check rental status for product ${product.id}:`, error);
+          rentalStatusMap[product.id] = { isRented: false };
+        }
+      }
+      
+      setActiveRentals(rentalStatusMap);
+    } catch (error) {
+      console.error('Failed to check rental status:', error);
+      // Set all products as not rented if check fails
+      const fallbackMap: {[productId: string]: {isRented: boolean}} = {};
+      products.forEach(product => {
+        fallbackMap[product.id] = { isRented: false };
+      });
+      setActiveRentals(fallbackMap);
+    }
+  };
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === "All" ||
       (selectedStatus === "Published" && product.published) ||
       (selectedStatus === "Unpublished" && !product.published);
-    return matchesSearch && matchesStatus;
+    
+    // Category filtering based on product's category
+    const productCategory = product.category;
+    const matchesCategory = selectedCategory === "All" || productCategory === selectedCategory;
+    
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const handleDeleteProduct = async (productId: string) => {
+    // Check if product is currently rented
+    const rentalStatus = activeRentals[productId];
+    if (rentalStatus?.isRented) {
+      alert('Cannot delete product while it is currently rented. Please wait for the rental to end.');
+      return;
+    }
+
     if (confirm("Are you sure you want to delete this product?")) {
       try {
         await productService.delete(productId);
         setProducts(products.filter(p => p.id !== productId));
+        // Remove from rental status tracking
+        setActiveRentals(prev => {
+          const newRentals = { ...prev };
+          delete newRentals[productId];
+          return newRentals;
+        });
       } catch (err) {
         console.error('Failed to delete product:', err);
         alert('Failed to delete product');
@@ -189,7 +265,9 @@ export default function VendorProducts() {
               className="px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
             >
               {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+                <option key={category} value={category}>
+                  {category === "All" ? "All Categories" : category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </option>
               ))}
             </select>
             <select
@@ -213,7 +291,9 @@ export default function VendorProducts() {
               className="w-full px-4 py-3 border-2 border-secondary-200 rounded-lg focus:outline-none text-secondary-900"
             >
               {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+                <option key={category} value={category}>
+                  {category === "All" ? "All Categories" : category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </option>
               ))}
             </select>
             <select
@@ -236,21 +316,40 @@ export default function VendorProducts() {
           const defaultPrice = product.pricing?.[0]?.price || 0;
           const defaultPeriod = product.pricing?.[0]?.rentalPeriod?.name || 'day';
           const stock = product.inventory?.quantityOnHand || 0;
+          const isCurrentlyRented = activeRentals[product.id]?.isRented || false;
+          const rentalDetails = activeRentals[product.id]?.rentalDetails;
+          const productCategory = product.category || 'UNCATEGORIZED';
+          const isInactive = isCurrentlyRented; // Product is inactive when rented
 
           return (
-            <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+            <div key={product.id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow ${isInactive ? 'opacity-75 border-2 border-red-200' : ''}`}>
               {/* Product Image */}
               <div className="relative h-48 bg-secondary-300">
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-4 right-4 space-y-2">
                   <span
-                    className="px-3 py-1 rounded-full text-xs font-bold"
+                    className="block px-3 py-1 rounded-full text-xs font-bold"
                     style={{ backgroundColor: statusColor.bg, color: statusColor.text }}
                   >
                     {product.published ? 'Published' : 'Unpublished'}
                   </span>
+                  {isCurrentlyRented && (
+                    <span className="block px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                      Currently Rented
+                    </span>
+                  )}
+                  {isInactive && (
+                    <span className="block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">
+                      Inactive
+                    </span>
+                  )}
                 </div>
-                <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                  Stock: {stock}
+                <div className="absolute bottom-4 left-4 space-y-1">
+                  <div className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                    Stock: {stock}
+                  </div>
+                  <div className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+                    {productCategory.replace(/_/g, ' ')}
+                  </div>
                 </div>
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-secondary-100">
                   <span className="text-4xl">📦</span>
@@ -282,6 +381,20 @@ export default function VendorProducts() {
                 <p className="text-sm text-secondary-600 mb-4 line-clamp-2">
                   {product.description || 'No description available'}
                 </p>
+
+                {/* Rental Status Details */}
+                {isCurrentlyRented && rentalDetails && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="text-sm">
+                      <div className="font-medium text-red-800 mb-1">Currently Rented</div>
+                      <div className="text-red-700">
+                        <div>Order: {rentalDetails.orderNumber}</div>
+                        <div>Customer: {rentalDetails.customerName}</div>
+                        <div>Return: {new Date(rentalDetails.endDate).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 mb-4 text-center">
@@ -316,13 +429,15 @@ export default function VendorProducts() {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => handleTogglePublish(product.id, product.published)}
-                      disabled={publishingProducts.has(product.id)}
+                      disabled={publishingProducts.has(product.id) || isCurrentlyRented}
                       className={`p-2 rounded-lg transition-colors ${
-                        product.published
-                          ? 'hover:bg-amber-100 text-amber-600'
-                          : 'hover:bg-green-100 text-green-600'
+                        isCurrentlyRented
+                          ? 'opacity-50 cursor-not-allowed text-gray-400'
+                          : product.published
+                            ? 'hover:bg-amber-100 text-amber-600'
+                            : 'hover:bg-green-100 text-green-600'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      title={product.published ? 'Unpublish' : 'Publish'}
+                      title={isCurrentlyRented ? 'Cannot modify while rented' : (product.published ? 'Unpublish' : 'Publish')}
                     >
                       {publishingProducts.has(product.id) ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
@@ -340,13 +455,29 @@ export default function VendorProducts() {
                     </Link>
                     <Link
                       href={`/vendor/products/${product.id}/edit`}
-                      className="p-2 rounded-lg hover:bg-secondary-100 transition-colors text-primary-600"
+                      className={`p-2 rounded-lg transition-colors ${
+                        isCurrentlyRented
+                          ? 'opacity-50 cursor-not-allowed text-gray-400'
+                          : 'hover:bg-secondary-100 text-primary-600'
+                      }`}
+                      onClick={(e) => {
+                        if (isCurrentlyRented) {
+                          e.preventDefault();
+                          alert('Cannot edit product while it is currently rented');
+                        }
+                      }}
                     >
                       <PencilIcon className="h-5 w-5" />
                     </Link>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
-                      className="p-2 rounded-lg hover:bg-red-50 transition-colors text-red-600"
+                      disabled={isCurrentlyRented}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isCurrentlyRented
+                          ? 'opacity-50 cursor-not-allowed text-gray-400'
+                          : 'hover:bg-red-50 text-red-600'
+                      }`}
+                      title={isCurrentlyRented ? 'Cannot delete while rented' : 'Delete product'}
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
